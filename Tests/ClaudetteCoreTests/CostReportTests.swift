@@ -92,7 +92,7 @@ final class UsageServiceTests: XCTestCase {
         subscriptionType: "max", source: .file)
 
     private func firstState(
-        matching predicate: @escaping (UsageState) -> Bool,
+        matching predicate: @escaping @Sendable (UsageState) -> Bool,
         from service: UsageService
     ) async -> UsageState? {
         let stream = await service.states()
