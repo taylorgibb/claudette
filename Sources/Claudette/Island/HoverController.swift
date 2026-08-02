@@ -41,7 +41,7 @@ final class HoverController {
         mouseMonitors = []
         guard enabled else { return }
 
-        let globalHandler: (NSEvent) -> Void = { [weak self] _ in
+        let globalHandler: @Sendable (NSEvent) -> Void = { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.evaluatePointer()
             }
@@ -49,7 +49,7 @@ final class HoverController {
         if let global = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved], handler: globalHandler) {
             mouseMonitors.append(global)
         }
-        let localHandler: (NSEvent) -> NSEvent? = { [weak self] event in
+        let localHandler: @Sendable (NSEvent) -> NSEvent? = { [weak self] event in
             MainActor.assumeIsolated {
                 self?.evaluatePointer()
             }
@@ -88,7 +88,7 @@ final class HoverController {
 
         // Global monitors only see events delivered to other apps, so a
         // click inside our own panel never trips this.
-        let outsideHandler: (NSEvent) -> Void = { [weak self] _ in
+        let outsideHandler: @Sendable (NSEvent) -> Void = { [weak self] _ in
             MainActor.assumeIsolated {
                 self?.onDismiss()
             }
@@ -97,7 +97,7 @@ final class HoverController {
             matching: [.leftMouseDown, .rightMouseDown], handler: outsideHandler) {
             dismissMonitors.append(outside)
         }
-        let escapeHandler: (NSEvent) -> NSEvent? = { [weak self] event in
+        let escapeHandler: @Sendable (NSEvent) -> NSEvent? = { [weak self] event in
             guard event.keyCode == 53 else { return event }
             MainActor.assumeIsolated {
                 self?.onDismiss()

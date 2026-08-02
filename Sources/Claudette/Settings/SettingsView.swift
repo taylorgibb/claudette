@@ -83,8 +83,6 @@ struct GeneralSettingsTab: View {
                 Text("Panel opens, cost-screen views, and setting toggles. Off by default.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-                Link("What leaves this Mac (and what never does)", destination: AppSettings.telemetryDetailsURL)
-                    .font(.callout)
             }
         }
         .formStyle(.grouped)

@@ -7,7 +7,6 @@ import ClaudetteCore
 /// `setting_changed` event for enum/bool keys only.
 @MainActor
 final class AppSettings: ObservableObject {
-    static let telemetryDetailsURL = URL(string: "https://github.com/taylorgibb/claudette/blob/main/PRIVACY.md")!
     static let releasesURL = URL(string: "https://github.com/taylorgibb/claudette/releases")!
 
     private let defaults: UserDefaults

@@ -50,24 +50,6 @@ discounts, long-context surcharges, and anything billed outside the
 subscription. Unknown models are counted in tokens but never silently
 priced — they're named in a footnote instead.
 
-## Telemetry
-
-Anonymous, redacted, and split into two tiers (see [PRIVACY.md](PRIVACY.md)):
-
-- **Essential** (on by default, disclosed on first open, one toggle to kill):
-  launch, one daily heartbeat, and failure events — so environmental
-  breakage (keychain shapes, notch geometry, endpoint drift) is visible.
-- **Behavioral** (off by default): panel opens, cost-screen views, setting
-  changes.
-
-What never leaves the machine: tokens, emails, org IDs, paths or project
-names, prompt content, dollar figures, token counts, and your utilization
-percentages. Every free-form string passes through a unit-tested
-[`Redactor`](Sources/ClaudetteCore/Telemetry/Redactor.swift), and the whole
-egress surface is one file:
-[`PostHogAnalytics.swift`](Sources/Claudette/Telemetry/PostHogAnalytics.swift).
-Builds without a PostHog key baked in (all local builds) send nothing at all.
-
 ## Building from source
 
 ```sh
@@ -103,8 +85,3 @@ Without signing secrets, releases are ad-hoc signed and need
 `--no-quarantine`. Note that keychain "Always Allow" grants are tied to the
 signing identity — ship a stable identity from the first signed release or
 every update re-prompts.
-
-## Why not the App Store
-
-Reading another app's keychain item requires running without the sandbox,
-and the sandbox is mandatory there.

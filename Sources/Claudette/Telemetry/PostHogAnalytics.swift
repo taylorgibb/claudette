@@ -1,5 +1,5 @@
 import Foundation
-import PostHog
+@preconcurrency import PostHog
 import ClaudetteCore
 
 /// The only file that imports PostHog. Anonymous events, no person

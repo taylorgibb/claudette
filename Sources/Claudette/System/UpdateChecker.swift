@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 /// Lightweight update check against GitHub releases: notify-and-link only,
 /// once a day when enabled. (Sparkle can replace this later.)

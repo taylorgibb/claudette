@@ -3,7 +3,7 @@ import Foundation
 import Security
 #endif
 
-public enum CredentialFailureReason: String, Sendable, Equatable, CaseIterable {
+public enum CredentialFailureReason: String, Error, Sendable, Equatable, CaseIterable {
     case noKeychainItem = "no_keychain_item"
     /// Keychain item exists but holds only `mcpOAuth` (Claude Code 2.1.x
     /// shape) with no `claudeAiOauth`. Needs re-auth, not a network retry.

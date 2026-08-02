@@ -150,9 +150,6 @@ struct PanelView: View {
                         .font(.system(size: 9))
                         .foregroundStyle(Tokens.haze)
                         .fixedSize(horizontal: false, vertical: true)
-                    Link("Details", destination: AppSettings.telemetryDetailsURL)
-                        .font(.system(size: 9))
-                        .foregroundStyle(Tokens.haze)
                 }
                 Spacer()
                 Toggle("", isOn: $settings.telemetryEssential)
