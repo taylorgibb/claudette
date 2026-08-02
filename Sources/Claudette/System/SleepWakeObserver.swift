@@ -4,12 +4,12 @@ import AppKit
 /// immediately on wake/unlock.
 @MainActor
 final class SleepWakeObserver {
-    private let onSleep: () -> Void
-    private let onWake: () -> Void
+    private let onSleep: @MainActor () -> Void
+    private let onWake: @MainActor () -> Void
     private var tokens: [NSObjectProtocol] = []
     private var distributedTokens: [NSObjectProtocol] = []
 
-    init(onSleep: @escaping () -> Void, onWake: @escaping () -> Void) {
+    init(onSleep: @escaping @MainActor () -> Void, onWake: @escaping @MainActor () -> Void) {
         self.onSleep = onSleep
         self.onWake = onWake
 

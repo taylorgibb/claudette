@@ -11,7 +11,7 @@ final class AppSettings: ObservableObject {
     static let releasesURL = URL(string: "https://github.com/taylorgibb/claudette/releases")!
 
     private let defaults: UserDefaults
-    var onChange: ((String, String) -> Void)?
+    var onChange: (@MainActor (String, String) -> Void)?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

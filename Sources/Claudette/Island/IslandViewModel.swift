@@ -30,8 +30,8 @@ final class IslandViewModel: ObservableObject {
     private let usageService: UsageService
     private let costEngine: CostEngine
     private let priceLoader: PriceTableLoader
-    var onModeChange: ((Mode) -> Void)?
-    var onOpenSettings: (() -> Void)?
+    var onModeChange: (@MainActor (Mode) -> Void)?
+    var onOpenSettings: (@MainActor () -> Void)?
 
     private var enterTask: Task<Void, Never>?
     private var exitTask: Task<Void, Never>?

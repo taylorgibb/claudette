@@ -31,9 +31,9 @@ final class IslandWindow: NSPanel {
 /// rect. Also owns the `NSTrackingArea` hover path (build-plan option A).
 final class IslandHostingView: NSHostingView<AnyView> {
     /// Returns the current silhouette size (top-center anchored in this view).
-    var silhouetteSize: () -> CGSize = { .zero }
+    var silhouetteSize: @MainActor () -> CGSize = { .zero }
     /// Raw hover signal; debouncing lives in the view model.
-    var onHoverRaw: (Bool) -> Void = { _ in }
+    var onHoverRaw: @MainActor (Bool) -> Void = { _ in }
 
     private var trackingArea: NSTrackingArea?
 

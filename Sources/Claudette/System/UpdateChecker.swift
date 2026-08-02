@@ -12,7 +12,7 @@ final class UpdateChecker: ObservableObject {
         }
     }
 
-    var onAvailableChange: ((String?) -> Void)?
+    var onAvailableChange: (@MainActor (String?) -> Void)?
 
     private let latestReleaseURL = URL(string: "https://api.github.com/repos/taylorgibb/claudette/releases/latest")!
     private var timerTask: Task<Void, Never>?

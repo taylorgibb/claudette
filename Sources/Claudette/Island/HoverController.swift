@@ -7,9 +7,9 @@ import AppKit
 @MainActor
 final class HoverController {
     private weak var window: NSWindow?
-    private var silhouetteSize: () -> CGSize
-    private let onHoverRaw: (Bool) -> Void
-    private let onDismiss: () -> Void
+    private var silhouetteSize: @MainActor () -> CGSize
+    private let onHoverRaw: @MainActor (Bool) -> Void
+    private let onDismiss: @MainActor () -> Void
 
     private var mouseMonitors: [Any] = []
     private var dismissMonitors: [Any] = []
@@ -17,9 +17,9 @@ final class HoverController {
 
     init(
         window: NSWindow,
-        silhouetteSize: @escaping () -> CGSize,
-        onHoverRaw: @escaping (Bool) -> Void,
-        onDismiss: @escaping () -> Void
+        silhouetteSize: @escaping @MainActor () -> CGSize,
+        onHoverRaw: @escaping @MainActor (Bool) -> Void,
+        onDismiss: @escaping @MainActor () -> Void
     ) {
         self.window = window
         self.silhouetteSize = silhouetteSize
