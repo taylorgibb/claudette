@@ -1,0 +1,7 @@
+{"type":"user","message":{"role":"user","content":"hello"},"timestamp":"2026-07-30T09:59:58.000000Z"}
+{"type":"assistant","requestId":"req_01","timestamp":"2026-07-30T10:00:00.123456Z","message":{"id":"msg_01","model":"claude-opus-4-5","usage":{"input_tokens":100,"output_tokens":50,"cache_creation_input_tokens":1000,"cache_read_input_tokens":2000}}}
+{"type":"assistant","requestId":"req_01","timestamp":"2026-07-30T10:00:01.223456Z","message":{"id":"msg_01","model":"claude-opus-4-5","usage":{"input_tokens":100,"output_tokens":50,"cache_creation_input_tokens":1000,"cache_read_input_tokens":2000}}}
+{"type":"assistant","requestId":"req_01","timestamp":"2026-07-30T10:00:02.323456Z","message":{"id":"msg_01","model":"claude-opus-4-5","usage":{"input_tokens":100,"output_tokens":50,"cache_creation_input_tokens":1000,"cache_read_input_tokens":2000}}}
+{"type":"system","subtype":"info","content":"noise line"}
+{"type":"assistant","requestId":"req_02","timestamp":"2026-07-30T10:05:00.000000Z","message":{"id":"msg_02","model":"claude-opus-4-5","usage":{"input_tokens":10,"output_tokens":5}}}
+not even json
