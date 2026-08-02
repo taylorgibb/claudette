@@ -1,0 +1,150 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.1.0 (tag v<version> is created)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build, sign, package
+    runs-on: macos-15
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      sha256: ${{ steps.checksum.outputs.sha256 }}
+    env:
+      SIGN_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+      SIGN_P12_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+      NOTARY_APPLE_ID: ${{ secrets.APPLE_ID }}
+      NOTARY_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      NOTARY_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Releasing $VERSION"
+
+      - name: Cache SwiftPM build
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-release-${{ runner.os }}-${{ hashFiles('Package.swift') }}
+          restore-keys: spm-release-${{ runner.os }}-
+
+      - name: Test
+        run: swift test
+
+      - name: Build universal binary
+        run: swift build -c release --arch arm64 --arch x86_64
+
+      - name: Assemble app bundle
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
+        run: ./scripts/package.sh "${{ steps.version.outputs.version }}"
+
+      - name: Sign (Developer ID)
+        if: env.SIGN_P12 != ''
+        run: |
+          KEYCHAIN=build.keychain
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          echo "$SIGN_P12" | base64 -d > /tmp/cert.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 1800 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import /tmp/cert.p12 -k "$KEYCHAIN" -P "$SIGN_P12_PASSWORD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain
+          rm /tmp/cert.p12
+          IDENTITY="${SIGN_IDENTITY:-$(security find-identity -v -p codesigning "$KEYCHAIN" | awk -F'"' 'NR==1{print $2}')}"
+          echo "Signing as: $IDENTITY"
+          codesign --force --options runtime --timestamp \
+            --sign "$IDENTITY" dist/Claudette.app
+          codesign --verify --deep --strict dist/Claudette.app
+
+      - name: Sign (ad-hoc fallback)
+        if: env.SIGN_P12 == ''
+        run: |
+          echo "No Developer ID certificate configured; ad-hoc signing." \
+               "Users must install with --no-quarantine."
+          codesign --force --deep --sign - dist/Claudette.app
+
+      - name: Create DMG
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          STAGING=dist/dmg
+          mkdir -p "$STAGING"
+          cp -R dist/Claudette.app "$STAGING/"
+          ln -s /Applications "$STAGING/Applications"
+          hdiutil create -volname "Claudette" -srcfolder "$STAGING" \
+            -ov -format UDZO "dist/Claudette-$VERSION.dmg"
+
+      - name: Notarize
+        if: env.SIGN_P12 != '' && env.NOTARY_APPLE_ID != ''
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          xcrun notarytool submit "dist/Claudette-$VERSION.dmg" \
+            --apple-id "$NOTARY_APPLE_ID" \
+            --team-id "$NOTARY_TEAM_ID" \
+            --password "$NOTARY_PASSWORD" \
+            --wait
+          xcrun stapler staple "dist/Claudette-$VERSION.dmg"
+
+      - name: Checksum
+        id: checksum
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          SHA=$(shasum -a 256 "dist/Claudette-$VERSION.dmg" | awk '{print $1}')
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "sha256: $SHA"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Claudette v${{ steps.version.outputs.version }}
+          files: dist/Claudette-${{ steps.version.outputs.version }}.dmg
+          generate_release_notes: true
+
+  update-cask:
+    name: Bump Homebrew cask
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Update cask version and checksum
+        run: |
+          VERSION="${{ needs.build.outputs.version }}"
+          SHA="${{ needs.build.outputs.sha256 }}"
+          sed -i -E "s|^  version \".*\"|  version \"$VERSION\"|" Casks/claudette.rb
+          sed -i -E "s|^  sha256 \".*\"|  sha256 \"$SHA\"|" Casks/claudette.rb
+          git diff --stat
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/claudette.rb
+          git commit -m "Update Homebrew cask to v${{ needs.build.outputs.version }}"
+          git push origin main
