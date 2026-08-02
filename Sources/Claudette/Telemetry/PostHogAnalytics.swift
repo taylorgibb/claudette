@@ -11,7 +11,7 @@ final class PostHogAnalytics: Analytics, @unchecked Sendable {
     init(apiKey: String, host: String, distinctID: String, policy: TelemetryPolicy) {
         self.policy = policy
 
-        let config = PostHogConfig(apiKey: apiKey, host: host)
+        let config = PostHogConfig(projectToken: apiKey, host: host)
         // Anonymous events only; no person record per user.
         config.personProfiles = .never
         // We send our own lifecycle events, deliberately.

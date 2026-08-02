@@ -53,7 +53,11 @@ final class CostEngineTests: XCTestCase {
 
         let report = await makeEngine().refresh(prices: prices)
         // Dedup keeps one copy of m1: input 110, output 55, cw5m 1000, read 2000.
-        let expected = (110.0 * 5 + 55.0 * 25 + 1000.0 * 6.25 + 2000.0 * 0.5) / 1_000_000
+        let inputDollars: Double = 110.0 * 5.0
+        let outputDollars: Double = 55.0 * 25.0
+        let cacheWriteDollars: Double = 1000.0 * 6.25
+        let cacheReadDollars: Double = 2000.0 * 0.5
+        let expected: Double = (inputDollars + outputDollars + cacheWriteDollars + cacheReadDollars) / 1_000_000.0
         XCTAssertEqual(report.totalDollars, expected, accuracy: 1e-12)
         XCTAssertEqual(report.models.count, 1)
         XCTAssertEqual(report.models[0].tally.input, 110)
@@ -140,7 +144,8 @@ final class CostEngineTests: XCTestCase {
 
         let report = await makeEngine().refresh(prices: prices)
         XCTAssertEqual(report.unknownModels, ["totally-future-model"])
-        XCTAssertEqual(report.totalDollars, 100.0 * 5 / 1_000_000, accuracy: 1e-12)
+        let expected: Double = 500.0 / 1_000_000.0
+        XCTAssertEqual(report.totalDollars, expected, accuracy: 1e-12)
         let unknownLine = try XCTUnwrap(report.models.first { $0.model == "totally-future-model" })
         XCTAssertNil(unknownLine.dollars)
         XCTAssertEqual(unknownLine.tally.input, 999)
