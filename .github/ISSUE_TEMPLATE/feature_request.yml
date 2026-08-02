@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest something Claudette should do
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve
+      description: What you are trying to do today, and where it falls short.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        Claudette is deliberately small: it lives in the notch and shows two
+        numbers at rest. Proposals that keep it that way are much more likely
+        to land than ones that add another surface.

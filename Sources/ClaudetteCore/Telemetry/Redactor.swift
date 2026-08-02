@@ -5,18 +5,18 @@ import Foundation
 /// process. Tokens, emails, org UUIDs, home paths, and project directory
 /// names must not survive.
 public enum Redactor {
-    public static let maxLength = 2048
+    public static let maxUTF8ByteCount = 2048
 
-    nonisolated(unsafe) private static let tokenRegex =
+    private static let tokenRegex =
         try! NSRegularExpression(pattern: #"sk-ant-[A-Za-z0-9_\-]+"#)
-    nonisolated(unsafe) private static let emailRegex =
+    private static let emailRegex =
         try! NSRegularExpression(pattern: #"[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}"#)
-    nonisolated(unsafe) private static let uuidRegex =
+    private static let uuidRegex =
         try! NSRegularExpression(
             pattern: #"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"#)
-    nonisolated(unsafe) private static let projectsRegex =
+    private static let projectsRegex =
         try! NSRegularExpression(pattern: #"(projects/)[^\s"']+"#)
-    nonisolated(unsafe) private static let usersHomeRegex =
+    private static let usersHomeRegex =
         try! NSRegularExpression(pattern: #"/Users/[^/\s"']+"#)
 
     public static func scrub(_ input: String) -> String {
@@ -38,8 +38,8 @@ public enum Redactor {
         text = replace(emailRegex, in: text, with: "[email]")
         text = replace(uuidRegex, in: text, with: "[uuid]")
 
-        if text.utf8.count > maxLength {
-            var clipped = String(decoding: Array(text.utf8.prefix(maxLength)), as: UTF8.self)
+        if text.utf8.count > maxUTF8ByteCount {
+            var clipped = String(decoding: Array(text.utf8.prefix(maxUTF8ByteCount)), as: UTF8.self)
             // Drop a possibly-split trailing scalar artifact.
             if clipped.unicodeScalars.last == "\u{FFFD}" {
                 clipped.removeLast()

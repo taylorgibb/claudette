@@ -43,7 +43,7 @@ final class RedactorTests: XCTestCase {
     func testTruncatesTo2KB() {
         let long = String(repeating: "a", count: 10_000)
         let output = Redactor.scrub(long)
-        XCTAssertLessThanOrEqual(output.utf8.count, Redactor.maxLength + 8)
+        XCTAssertLessThanOrEqual(output.utf8.count, Redactor.maxUTF8ByteCount + 8)
         XCTAssertTrue(output.hasSuffix("…"))
     }
 

@@ -1,69 +1,116 @@
 import XCTest
 @testable import ClaudetteCore
 
+/// `limits[]` is the whole contract: which limits exist depends on the plan,
+/// and any of them can be absent.
 final class UsageDecodingTests: XCTestCase {
-    func testDecodesFullResponseWithMicrosecondTimestamps() throws {
-        let json = """
-        {
-          "five_hour":        { "utilization": 33.0, "resets_at": "2026-08-01T07:00:00.123456Z" },
-          "seven_day":        { "utilization": 13.0, "resets_at": "2026-08-05T00:59:59Z" },
-          "seven_day_opus":   null,
-          "seven_day_sonnet": { "utilization": 1.0, "resets_at": "2026-08-04T03:00:00Z" },
-          "extra_usage":      { "is_enabled": false, "monthly_limit": null, "used_credits": null, "utilization": null }
-        }
-        """
-        let snapshot = try UsageSnapshot.decode(from: Data(json.utf8))
-        XCTAssertEqual(snapshot.fiveHour?.utilization, 33.0)
-        XCTAssertNotNil(snapshot.fiveHour?.resetsAt)
-        XCTAssertEqual(snapshot.sevenDay?.utilization, 13.0)
-        XCTAssertNil(snapshot.sevenDayOpus)
-        XCTAssertEqual(snapshot.sevenDaySonnet?.utilization, 1.0)
-        XCTAssertEqual(snapshot.extraUsage?.isEnabled, false)
-        XCTAssertEqual(snapshot.modelWeekly?.label, "SONNET")
+    private let payload = """
+    {
+      "rate_limit_tier": "default_claude_max_20x",
+      "limits": [
+        {"kind": "session", "group": "session", "percent": 4,
+         "resets_at": "2026-08-02T21:50:00.244749+00:00", "scope": null, "is_active": false},
+        {"kind": "weekly_all", "group": "weekly", "percent": 13,
+         "resets_at": "2026-08-07T05:00:00.244770+00:00", "scope": null, "is_active": true},
+        {"kind": "weekly_scoped", "group": "weekly", "percent": 12,
+         "resets_at": "2026-08-07T05:00:00.245002+00:00",
+         "scope": {"model": {"id": null, "display_name": "Fable"}, "surface": null},
+         "is_active": false}
+      ]
+    }
+    """
+
+    func testDecodesEveryLimitKind() throws {
+        let snapshot = try UsageSnapshot.decode(from: Data(payload.utf8))
+        XCTAssertEqual(snapshot.session?.percentUsed, 4)
+        XCTAssertNotNil(snapshot.session?.resetsAt)
+        XCTAssertEqual(snapshot.weekly?.percentUsed, 13)
+        XCTAssertEqual(snapshot.rateLimitTier, "default_claude_max_20x")
     }
 
-    func testDecodesIntegerUtilization() throws {
-        let json = #"{"five_hour": {"utilization": 33, "resets_at": null}}"#
+    func testScopedLimitCarriesItsModelName() throws {
+        let snapshot = try UsageSnapshot.decode(from: Data(payload.utf8))
+        let model = try XCTUnwrap(snapshot.weeklyForModel)
+        XCTAssertEqual(model.modelName, "Fable")
+        XCTAssertEqual(model.window.percentUsed, 12)
+        XCTAssertEqual(snapshot.limits.filter { $0.modelName != nil }.count, 1)
+    }
+
+    func testMicrosecondTimestampsParse() throws {
+        let json = #"{"limits":[{"kind":"session","percent":33,"resets_at":"2026-08-01T07:00:00.123456Z"}]}"#
         let snapshot = try UsageSnapshot.decode(from: Data(json.utf8))
-        XCTAssertEqual(snapshot.fiveHour?.utilization, 33.0)
-        XCTAssertNil(snapshot.fiveHour?.resetsAt)
+        XCTAssertEqual(snapshot.session?.percentUsed, 33.0)
+        XCTAssertNotNil(snapshot.session?.resetsAt)
     }
 
     func testDecodesEmptyObject() throws {
         let snapshot = try UsageSnapshot.decode(from: Data("{}".utf8))
-        XCTAssertNil(snapshot.fiveHour)
-        XCTAssertNil(snapshot.sevenDay)
-        XCTAssertNil(snapshot.modelWeekly)
+        XCTAssertTrue(snapshot.limits.isEmpty)
+        XCTAssertNil(snapshot.session)
+        XCTAssertNil(snapshot.weekly)
+        XCTAssertNil(snapshot.weeklyForModel)
     }
 
-    func testOpusPreferredOverSonnetForModelWeekly() throws {
+    /// An unrecognised kind must not fail the decode and take the whole array
+    /// with it — a new limit kind should cost us that one row, no more.
+    func testUnknownKindIsKeptAsOther() throws {
         let json = """
-        {"seven_day_opus": {"utilization": 5, "resets_at": null},
-         "seven_day_sonnet": {"utilization": 9, "resets_at": null}}
+        {"limits":[{"kind":"monthly_new_thing","percent":1,"resets_at":null},
+                   {"kind":"session","percent":50,"resets_at":null}]}
         """
         let snapshot = try UsageSnapshot.decode(from: Data(json.utf8))
-        XCTAssertEqual(snapshot.modelWeekly?.label, "OPUS")
-        XCTAssertEqual(snapshot.modelWeekly?.window.utilization, 5)
+        XCTAssertEqual(snapshot.limits.count, 2)
+        XCTAssertEqual(snapshot.limits[0].kind, .other("monthly_new_thing"))
+        XCTAssertEqual(snapshot.session?.percentUsed, 50)
+    }
+
+    /// Decoding the array in one go means a single malformed row throws away
+    /// every other limit, leaving a snapshot with no windows and no error.
+    func testOneMalformedRowCostsOnlyThatRow() throws {
+        let json = """
+        {"limits":[{"kind":"session","percent":7,"resets_at":null},
+                   {"kind":"weekly_all","percent":null,"resets_at":null},
+                   "not even an object",
+                   {"kind":"weekly_scoped","percent":9,"resets_at":null,
+                    "scope":{"model":{"display_name":"Fable"}}}]}
+        """
+        let snapshot = try UsageSnapshot.decode(from: Data(json.utf8))
+        XCTAssertEqual(snapshot.limits.count, 2)
+        XCTAssertEqual(snapshot.session?.percentUsed, 7)
+        XCTAssertEqual(snapshot.weeklyForModel?.modelName, "Fable")
+        XCTAssertNil(snapshot.weekly, "the null-percent row is the only casualty")
     }
 
     func testPersistedUsageRoundTrip() throws {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("claudette-tests-\(UUID().uuidString)")
         let url = dir.appendingPathComponent("snapshot.json")
-        let snapshot = UsageSnapshot(
-            fiveHour: UsageWindow(utilization: 42, resetsAt: Date(timeIntervalSince1970: 1_800_000_000)),
-            sevenDay: UsageWindow(utilization: 7, resetsAt: nil))
+        let snapshot = UsageSnapshot(limits: [
+            UsageLimit(
+                kind: .session,
+                window: LimitWindow(percentUsed: 42, resetsAt: Date(timeIntervalSince1970: 1_800_000_000))),
+            UsageLimit(kind: .weeklyAllModels, window: LimitWindow(percentUsed: 7, resetsAt: nil)),
+        ])
         let persisted = PersistedUsage(snapshot: snapshot, syncedAt: Date(timeIntervalSince1970: 1_790_000_000))
         persisted.save(to: url)
         let loaded = PersistedUsage.load(from: url)
-        XCTAssertEqual(loaded?.snapshot.fiveHour?.utilization, 42)
+        XCTAssertEqual(loaded?.snapshot.session?.percentUsed, 42)
         XCTAssertEqual(loaded?.syncedAt.timeIntervalSince1970 ?? 0, 1_790_000_000, accuracy: 1)
         try? FileManager.default.removeItem(at: dir)
     }
 
-    func testFractionUsedClamps() {
-        XCTAssertEqual(UsageWindow(utilization: 150, resetsAt: nil).fractionUsed, 1.0)
-        XCTAssertEqual(UsageWindow(utilization: -5, resetsAt: nil).fractionUsed, 0.0)
+    func testWindowLengthsComeFromTheKind() {
+        XCTAssertEqual(UsageLimit.Kind.session.windowDuration, 5 * 3600)
+        XCTAssertEqual(UsageLimit.Kind.weeklyAllModels.windowDuration, 7 * 86_400)
+        XCTAssertEqual(UsageLimit.Kind.weeklyPerModel.windowDuration, 7 * 86_400)
+    }
+
+    func testPercentAccessorsClampAndInvert() {
+        XCTAssertEqual(LimitWindow(percentUsed: 150, resetsAt: nil).fractionUsed, 1.0)
+        XCTAssertEqual(LimitWindow(percentUsed: -5, resetsAt: nil).fractionUsed, 0.0)
+        // The number the island actually renders is what's left, not what's used.
+        XCTAssertEqual(LimitWindow(percentUsed: 17, resetsAt: nil).percentRemaining, 83)
+        XCTAssertEqual(LimitWindow(percentUsed: 150, resetsAt: nil).percentRemaining, 0)
     }
 }
 
@@ -77,7 +124,7 @@ final class CredentialParsingTests: XCTestCase {
          "expiresAt": \(future), "scopes": ["user:inference", "user:profile"],
          "subscriptionType": "max"}}
         """)
-        let result = CredentialStore.parse(data, source: .file)
+        let result = CredentialStore.parse(data, source: .credentialsFile)
         guard case .success(let creds) = result else {
             return XCTFail("expected success, got \(result)")
         }
@@ -99,7 +146,7 @@ final class CredentialParsingTests: XCTestCase {
     func testInferenceOnlyScopeFailsValidation() {
         let creds = Credentials(
             accessToken: "t", expiresAt: nil,
-            scopes: ["user:inference"], subscriptionType: nil, source: .file)
+            scopes: ["user:inference"], subscriptionType: nil, source: .credentialsFile)
         guard case .failure(let reason) = CredentialStore.validate(creds) else {
             return XCTFail("expected failure")
         }
@@ -117,7 +164,7 @@ final class CredentialParsingTests: XCTestCase {
     }
 
     func testGarbageIsMalformed() {
-        guard case .failure(let reason) = CredentialStore.parse(json("not json"), source: .file) else {
+        guard case .failure(let reason) = CredentialStore.parse(json("not json"), source: .credentialsFile) else {
             return XCTFail("expected failure")
         }
         XCTAssertEqual(reason, .malformed)

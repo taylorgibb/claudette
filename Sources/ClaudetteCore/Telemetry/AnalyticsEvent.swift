@@ -16,41 +16,33 @@ public enum AnalyticsProperty: Sendable, Equatable {
     }
 }
 
-/// The complete event list. Deliberately small: no per-poll events, no
-/// free-form string properties, no utilization numbers, no dollar figures.
+/// The complete event list. Deliberately an enum with fixed associated
+/// values: there is no way to attach a free-form property, so no prompt, path,
+/// token, usage percentage or dollar figure can reach the wire by accident.
 public enum AnalyticsEvent: Sendable, Equatable {
     case appLaunched(appVersion: String, osVersion: String, arch: String, isNotchedDisplay: Bool, displayCount: Int)
     case dailyHeartbeat(appVersion: String, daysSinceInstallBucket: String, planTier: String)
-    case panelOpened(fromState: String)
-    case costScreenViewed(scanDurationBucket: String, modelCount: Int)
+    case panelOpened
+    case costPageViewed(scanDurationBucket: String, modelCount: Int)
     case settingChanged(key: String, value: String)
     case usageFetchFailed(statusCode: Int?, failureKind: String, retryCount: Int)
     case credentialsUnavailable(reason: String)
-    case costScanFailed(failureKind: String, rootKind: String)
-    case unknownModelPriced(modelID: String)
+    case costScanFailed(failureKind: String)
+    /// A model appeared in the logs that the price table has no entry for —
+    /// its tokens are counted but excluded from the dollar figure.
+    case unpricedModelSeen(modelID: ModelID)
 
     public var name: String {
         switch self {
         case .appLaunched: return "app_launched"
         case .dailyHeartbeat: return "daily_heartbeat"
         case .panelOpened: return "panel_opened"
-        case .costScreenViewed: return "cost_screen_viewed"
+        case .costPageViewed: return "cost_page_viewed"
         case .settingChanged: return "setting_changed"
         case .usageFetchFailed: return "usage_fetch_failed"
         case .credentialsUnavailable: return "credentials_unavailable"
         case .costScanFailed: return "cost_scan_failed"
-        case .unknownModelPriced: return "unknown_model_priced"
-        }
-    }
-
-    /// Behavioral events are opt-in; launch/heartbeat/failure events ride the
-    /// essential (opt-out) tier. See D5 in the build plan.
-    public var isBehavioral: Bool {
-        switch self {
-        case .panelOpened, .costScreenViewed, .settingChanged:
-            return true
-        default:
-            return false
+        case .unpricedModelSeen: return "unpriced_model_seen"
         }
     }
 
@@ -70,9 +62,9 @@ public enum AnalyticsEvent: Sendable, Equatable {
                 "days_since_install": .string(bucket),
                 "plan_tier": .string(planTier),
             ]
-        case .panelOpened(let fromState):
-            return ["from_state": .string(fromState)]
-        case .costScreenViewed(let bucket, let modelCount):
+        case .panelOpened:
+            return [:]
+        case .costPageViewed(let bucket, let modelCount):
             return [
                 "scan_duration_ms": .string(bucket),
                 "model_count": .int(modelCount),
@@ -90,16 +82,18 @@ public enum AnalyticsEvent: Sendable, Equatable {
             return props
         case .credentialsUnavailable(let reason):
             return ["reason": .string(reason)]
-        case .costScanFailed(let kind, let rootKind):
-            return ["failure_kind": .string(kind), "root_kind": .string(rootKind)]
-        case .unknownModelPriced(let modelID):
+        case .costScanFailed(let kind):
+            return ["failure_kind": .string(kind)]
+        case .unpricedModelSeen(let modelID):
             return ["model_id": .string(modelID)]
         }
     }
 }
 
+/// Coarse buckets, so no event carries a number precise enough to identify
+/// anyone. Each function is named for what it returns, not what it takes.
 public enum AnalyticsBuckets {
-    public static func daysSinceInstall(_ days: Int) -> String {
+    public static func daysSinceInstallBucket(_ days: Int) -> String {
         switch days {
         case ..<1: return "0"
         case 1...7: return "1-7"
@@ -109,7 +103,7 @@ public enum AnalyticsBuckets {
         }
     }
 
-    public static func scanDurationMs(_ ms: Int) -> String {
+    public static func scanDurationBucket(ms: Int) -> String {
         switch ms {
         case ..<100: return "<100"
         case 100..<500: return "100-500"

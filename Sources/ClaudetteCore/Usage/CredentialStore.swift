@@ -3,6 +3,8 @@ import Foundation
 import Security
 #endif
 
+/// Why the token could not be read. Codes only — the user-facing sentence for
+/// each lives in the UI layer, next to the rest of the app's copy.
 public enum CredentialFailureReason: String, Error, Sendable, Equatable, CaseIterable {
     case noKeychainItem = "no_keychain_item"
     /// Keychain item exists but holds only `mcpOAuth` (Claude Code 2.1.x
@@ -14,25 +16,11 @@ public enum CredentialFailureReason: String, Error, Sendable, Equatable, CaseIte
     case expired = "expired"
     case malformed = "malformed"
 
-    public var guidance: String {
-        switch self {
-        case .noKeychainItem:
-            return "No Claude Code credentials found. Sign in with `claude login`."
-        case .mcpOnly:
-            return "Claude Code stored MCP-only credentials. Re-authenticate with `claude login`."
-        case .scopeMissing:
-            return "This token can't read usage. Re-authenticate with `claude login`."
-        case .expired:
-            return "Claude Code token expired. Open Claude Code or run `claude login`."
-        case .malformed:
-            return "Stored credentials are unreadable. Re-authenticate with `claude login`."
-        }
-    }
 }
 
 public enum CredentialSource: String, Sendable, Equatable {
     case keychain
-    case file
+    case credentialsFile = "file"
 }
 
 public struct Credentials: Sendable, Equatable {
@@ -99,7 +87,7 @@ public struct CredentialStore: CredentialProviding {
         #endif
 
         if let data = try? Data(contentsOf: fileURL) {
-            switch Self.parse(data, source: .file) {
+            switch Self.parse(data, source: .credentialsFile) {
             case .success(let creds):
                 return Self.validate(creds)
             case .failure(let reason):

@@ -1,5 +1,8 @@
 import AppKit
+import ClaudetteUI
 
+/// The whole executable: everything else lives in `ClaudetteUI`, which is a
+/// library and therefore has somewhere to be tested from.
 @main
 enum ClaudetteMain {
     @MainActor

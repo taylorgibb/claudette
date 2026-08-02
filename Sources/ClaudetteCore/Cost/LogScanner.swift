@@ -1,25 +1,52 @@
 import Foundation
 
-/// One parsed assistant turn worth of usage from a session JSONL line.
-public struct ParsedUsage: Sendable, Equatable {
-    public let dedupHash: UInt64
-    public let model: String
-    public let dayKey: String
+/// One assistant turn's token usage, parsed from a session JSONL line.
+public struct LoggedTurn: Sendable, Equatable {
+    /// Stable across launches and files, so a turn copied into a resumed
+    /// session is counted once. Nil when the line carried neither a message ID
+    /// nor a request ID — such a turn is counted without dedup rather than
+    /// being folded together with every other ID-less turn.
+    public let dedupHash: UInt64?
+    public let model: ModelID
+    public let day: DayKey
     public let tally: TokenTally
+
+    public init(dedupHash: UInt64?, model: ModelID, day: DayKey, tally: TokenTally) {
+        self.dedupHash = dedupHash
+        self.model = model
+        self.day = day
+        self.tally = tally
+    }
 }
 
-/// Pure log-scanning machinery: root discovery, file listing, line parsing,
-/// chunked incremental file reads. No state; `CostEngine` owns the cache.
-public enum LogScanner {
+/// Where Claude Code keeps its session logs. Injected into `CostEngine` so a
+/// test can scan a fixture tree without also picking up the real ones.
+public protocol LogRootResolving: Sendable {
+    func roots() -> [URL]
+}
 
-    // MARK: - Root discovery
+/// The shipping policy: the documented Claude Code locations, plus whatever
+/// extra directories the user configured.
+public struct ClaudeLogRoots: LogRootResolving {
+    private let environment: [String: String]
+    private let home: URL
+    private let extraRoots: [String]
 
-    /// Claude Code session log roots, in order, deduplicated by resolved path.
-    public static func discoverRoots(
+    public init(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         home: URL = FileManager.default.homeDirectoryForCurrentUser,
         extraRoots: [String] = []
-    ) -> [URL] {
+    ) {
+        self.environment = environment
+        self.home = home
+        self.extraRoots = extraRoots
+    }
+
+    public func roots() -> [URL] {
+        LogScanner.existingDirectories(among: candidates())
+    }
+
+    private func candidates() -> [URL] {
         var candidates: [URL] = []
 
         if let configDir = environment["CLAUDE_CONFIG_DIR"] {
@@ -36,8 +63,8 @@ public enum LogScanner {
         // Claude desktop app session containers: <base>/**/.claude/projects
         let appSupport = home.appendingPathComponent("Library/Application Support/Claude")
         for container in ["claude-code-sessions", "local-agent-mode-sessions"] {
-            let base = appSupport.appendingPathComponent(container)
-            candidates.append(contentsOf: nestedProjectRoots(under: base))
+            candidates.append(contentsOf: LogScanner.nestedProjectRoots(
+                under: appSupport.appendingPathComponent(container)))
         }
 
         for extra in extraRoots {
@@ -45,7 +72,33 @@ public enum LogScanner {
             guard !trimmed.isEmpty else { continue }
             candidates.append(URL(fileURLWithPath: (trimmed as NSString).expandingTildeInPath))
         }
+        return candidates
+    }
+}
 
+/// An explicit list, for tests and for anyone embedding the engine.
+public struct FixedLogRoots: LogRootResolving {
+    private let urls: [URL]
+
+    public init(_ urls: [URL]) {
+        self.urls = urls
+    }
+
+    public func roots() -> [URL] {
+        LogScanner.existingDirectories(among: urls)
+    }
+}
+
+/// Pure log-scanning machinery: file listing, line parsing, chunked
+/// incremental reads. No state and no opinion about where logs live —
+/// `LogRootResolving` owns that, `CostEngine` owns the cache.
+public enum LogScanner {
+
+    // MARK: - Directory walking
+
+    /// Keeps the directories that exist, in order, deduplicated by resolved
+    /// path so a symlinked root isn't scanned twice.
+    static func existingDirectories(among candidates: [URL]) -> [URL] {
         var seen = Set<String>()
         var roots: [URL] = []
         let fm = FileManager.default
@@ -145,12 +198,11 @@ public enum LogScanner {
         let timestamp: String?
     }
 
-    nonisolated(unsafe) private static let decoder = JSONDecoder()
-
     /// Parses one JSONL line into usage, or nil for anything that isn't an
-    /// assistant turn with usage attached.
-    public static func parseLine(_ line: Data) -> ParsedUsage? {
-        // Cheap pre-filter before running the decoder on every line.
+    /// assistant turn with usage attached. The decoder is a parameter rather
+    /// than a shared static: `JSONDecoder` is not `Sendable` on this
+    /// deployment target, and this is a `public static` entry point.
+    public static func parseLine(_ line: Data, decoder: JSONDecoder = JSONDecoder()) -> LoggedTurn? {
         guard !line.isEmpty else { return nil }
         guard let parsed = try? decoder.decode(LogLine.self, from: line) else { return nil }
         guard parsed.type == "assistant",
@@ -176,21 +228,34 @@ public enum LogScanner {
         guard !tally.isEmpty else { return nil }
 
         let date = parsed.timestamp.flatMap(ISO8601.parse) ?? Date()
-        // Streaming chunks repeat usage for the same message; without this
-        // dedup key the totals overcount badly.
-        let hash = fnv1a64("\(message.id ?? ""):\(parsed.requestId ?? "")")
-        return ParsedUsage(
-            dedupHash: hash,
+        return LoggedTurn(
+            dedupHash: dedupHash(messageID: message.id, requestID: parsed.requestId),
             model: model.lowercased(),
-            dayKey: DayKey.from(date),
+            day: DayKey(date),
             tally: tally)
+    }
+
+    /// Streaming chunks repeat usage for the same message; without this key
+    /// the totals overcount badly. Nil when the line has no identity at all —
+    /// hashing the empty pair would collapse every such turn into one and
+    /// silently drop the rest.
+    static func dedupHash(messageID: String?, requestID: String?) -> UInt64? {
+        let message = messageID ?? ""
+        let request = requestID ?? ""
+        guard !message.isEmpty || !request.isEmpty else { return nil }
+        return Hash.fnv1a64("\(message):\(request)")
     }
 
     // MARK: - File scanning
 
     public struct FileScanResult: Sendable {
         public var consumedOffset: UInt64
-        public var entries: [ParsedUsage]
+        public var turns: [LoggedTurn]
+
+        public init(consumedOffset: UInt64, turns: [LoggedTurn]) {
+            self.consumedOffset = consumedOffset
+            self.turns = turns
+        }
     }
 
     /// Reads a session file from `offset`, in 1 MB chunks, splitting lines
@@ -201,10 +266,11 @@ public enum LogScanner {
         defer { try? handle.close() }
         try handle.seek(toOffset: offset)
 
+        let decoder = JSONDecoder()
         let chunkSize = 1 << 20
         var carry = Data()
         var consumed = offset
-        var entries: [ParsedUsage] = []
+        var turns: [LoggedTurn] = []
         let newline = UInt8(ascii: "\n")
 
         while true {
@@ -215,14 +281,14 @@ public enum LogScanner {
             while let newlineIndex = carry[searchStart...].firstIndex(of: newline) {
                 let lineData = carry.subdata(in: searchStart..<newlineIndex)
                 consumed += UInt64(newlineIndex - searchStart) + 1
-                if let parsed = parseLine(lineData) {
-                    entries.append(parsed)
+                if let parsed = parseLine(lineData, decoder: decoder) {
+                    turns.append(parsed)
                 }
                 searchStart = carry.index(after: newlineIndex)
             }
             carry.removeSubrange(carry.startIndex..<searchStart)
         }
 
-        return FileScanResult(consumedOffset: consumed, entries: entries)
+        return FileScanResult(consumedOffset: consumed, turns: turns)
     }
 }

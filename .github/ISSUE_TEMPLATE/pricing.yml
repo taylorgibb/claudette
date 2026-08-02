@@ -1,0 +1,24 @@
+name: Pricing correction
+description: A model is missing from the price table, or its rates are wrong
+labels: ["pricing"]
+body:
+  - type: input
+    id: model-id
+    attributes:
+      label: Model ID
+      description: Exactly as it appears in the session logs, e.g. claude-opus-5
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Link to the published rates
+    validations:
+      required: true
+  - type: textarea
+    id: rates
+    attributes:
+      label: Rates, in USD per million tokens
+      placeholder: "input 5, output 25, cache_read 0.5, cache_write_5m 6.25"
+    validations:
+      required: true
