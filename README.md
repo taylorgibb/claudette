@@ -14,8 +14,9 @@ your subscription actually costs. Two dots at the bottom show which page
 you're on. Right-click for refresh, settings and quit.
 
 <p align="center">
-  <img src="docs/panel-usage.svg" width="404" alt="The expanded panel: three gauge bars with pace ticks over a spend sparkline">
-  <img src="docs/panel-cost.svg" width="404" alt="The cost page: 30 days of spend at API rates next to the subscription price">
+  <img src="docs/panel-usage.svg" width="396" alt="The expanded panel: three gauge bars with pace ticks over a spend sparkline">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/panel-cost.svg" width="396" alt="The cost page: 30 days of spend at API rates next to the subscription price">
 </p>
 
 - Swift 6, SwiftUI, macOS 14+. No dock icon, no external dependencies.
@@ -41,7 +42,7 @@ Until releases are signed with a Developer ID and notarized, add
 refresh macOS asks for access to Claude Code's keychain item; click
 **Always Allow** once.
 
-## Running from source
+## Running from Source
 
 ```sh
 swift build                    # debug build
