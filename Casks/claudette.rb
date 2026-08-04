@@ -7,7 +7,7 @@ cask "claudette" do
   desc "Claude usage tracker that lives in the Mac notch"
   homepage "https://github.com/taylorgibb/claudette"
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
 
   app "Claudette.app"
 
@@ -23,8 +23,9 @@ cask "claudette" do
     On first launch, right-click the island, open Settings and use
     "Sign In with Claude". Claudette keeps its own token after that.
 
-    If this release is not notarized (no Developer ID configured yet),
-    install with:
-      brew install --cask --no-quarantine taylorgibb/claudette/claudette
+    If this release is not notarized (no Developer ID configured yet) and
+    macOS blocks the first launch, right-click Claudette.app and choose
+    Open, or run:
+      xattr -dr com.apple.quarantine /Applications/Claudette.app
   EOS
 end

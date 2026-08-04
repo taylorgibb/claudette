@@ -37,10 +37,10 @@ brew tap taylorgibb/claudette https://github.com/taylorgibb/claudette.git
 brew install --cask taylorgibb/claudette/claudette
 ```
 
-Until releases are signed with a Developer ID and notarized, add
-`--no-quarantine` to the install command (or right-click → Open). On first
-launch, right-click the island, open Settings and use **Sign In with
-Claude**.
+Until releases are signed with a Developer ID and notarized, macOS may block
+the first launch; right-click Claudette.app and choose Open, or run
+`xattr -dr com.apple.quarantine /Applications/Claudette.app`. Then right-click
+the island, open Settings and use **Sign In with Claude**.
 
 ## Running from Source
 
