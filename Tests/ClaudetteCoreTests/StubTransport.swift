@@ -1,8 +1,6 @@
 import Foundation
 @testable import ClaudetteCore
 
-/// Replays one canned response and records what it was asked for, so every
-/// network path in Core can be exercised without a network.
 final class StubTransport: HTTPTransport, @unchecked Sendable {
     private let lock = NSLock()
     private var _requests: [(url: URL, body: Data?)] = []

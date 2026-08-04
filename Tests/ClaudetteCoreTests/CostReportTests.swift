@@ -20,7 +20,6 @@ final class CostReportTests: XCTestCase {
         XCTAssertEqual(report.totalDollars, 5, accuracy: 1e-9)
         XCTAssertEqual(report.days.last?.dollars ?? 0, 3, accuracy: 1e-9)
         XCTAssertEqual(report.days.first?.dollars ?? 0, 2, accuracy: 1e-9)
-        // Zero-filled middle.
         XCTAssertEqual(report.days[10].dollars, 0)
     }
 
@@ -42,7 +41,6 @@ final class CostReportTests: XCTestCase {
 
     func testComparisonMultipleAndBreakEven() {
         let now = Date()
-        // $10/day for 30 days against a $100 subscription.
         var days: [DayKey: [ModelID: TokenTally]] = [:]
         for back in 0..<30 {
             days[dayKey(daysAgo: back, from: now)] = ["m": TokenTally(input: 10)]
@@ -52,7 +50,6 @@ final class CostReportTests: XCTestCase {
 
         let comparison = CostComparison(report: report, monthlyPrice: 100)
         XCTAssertEqual(comparison.subscriptionMultiple ?? 0, 3.0, accuracy: 1e-9)
-        // Crosses $100 on the 10th day of the window.
         XCTAssertEqual(comparison.breakEvenDay, report.days[9].key)
     }
 
@@ -71,8 +68,6 @@ final class CostReportTests: XCTestCase {
             PlanTier.effective(override: PlanTier.automaticID, detected: "default_claude_max_20x")?.id,
             "max_20x")
         XCTAssertNil(PlanTier.effective(override: PlanTier.automaticID, detected: nil))
-        // An override naming a tier that no longer exists falls back, it
-        // doesn't strand the user on no tier at all.
         XCTAssertEqual(PlanTier.effective(override: "retired_plan", detected: "pro")?.id, "pro")
     }
 

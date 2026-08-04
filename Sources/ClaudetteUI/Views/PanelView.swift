@@ -1,15 +1,11 @@
 import SwiftUI
 import ClaudetteCore
 
-/// The hover state: three gauge rows over the spend sparkline, with a gear in
-/// the notch band. Refresh, the cost page and quit live on the context menu.
 struct PanelView: View {
     @ObservedObject var viewModel: IslandViewModel
 
     var body: some View {
         VStack(spacing: 0) {
-            // The notch band is dead space anyway, so the one control the
-            // panel needs sits beside the camera rather than costing a row.
             HStack(spacing: 0) {
                 Spacer()
                 settingsButton
@@ -60,9 +56,6 @@ struct PanelView: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: Layout.rowGap) {
                 let presenter = viewModel.usagePresenter
-                // A row the plan doesn't have is rendered unavailable rather
-                // than dropped, holding the height steady so the island never
-                // resizes under the pointer.
                 ForEach(presenter.gauges) { gauge in
                     LimitGaugeView(
                         gauge: gauge,
@@ -89,7 +82,6 @@ struct PanelView: View {
             .padding(.horizontal, Layout.panelPadding)
             .padding(.top, Layout.panelTopPadding)
 
-            // Bled to the silhouette's edges, under a hairline.
             Sparkline(values: viewModel.costReport?.dailyFractionOfPeak ?? [])
                 .equatable()
         }
@@ -98,13 +90,6 @@ struct PanelView: View {
 }
 
 private extension View {
-    /// Reports this view's laid-out height.
-    ///
-    /// `onChange`'s action is not `@Sendable`, so it is main-actor-isolated by
-    /// construction. The `PreferenceKey` this replaced handed its value to an
-    /// `@Sendable` closure — SwiftUI explicitly reserving the right to call it
-    /// off the main actor — which the old code answered with
-    /// `MainActor.assumeIsolated`, i.e. a `fatalError` in a shipping app.
     func measuredHeight(_ report: @escaping (CGFloat) -> Void) -> some View {
         background {
             GeometryReader { proxy in

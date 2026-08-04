@@ -1,8 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// Owns the overlay window: creation, placement over the notch, hover
-/// wiring, and repositioning on screen-parameter changes.
 @MainActor
 final class IslandController: NSObject {
     let viewModel: IslandViewModel
@@ -34,22 +32,15 @@ final class IslandController: NSObject {
         viewModel.onModeChange = { [weak self] mode in
             guard let self else { return }
             self.hover.setPanelDismissMonitoring(mode == .panel)
-            // Key, but deliberately *not* active. `NSApp.activate` would
-            // deactivate whatever the user is actually working in — closing
-            // its menus and interrupting typing — and this fires on hover, not
-            // on a click. Controls act on their first click because
-            // `SymbolButton` answers `acceptsFirstMouse` for itself.
             if mode == .panel {
                 self.window.makeKey()
             }
         }
     }
 
-    /// The panel has no chrome by design, so these live on a right-click.
     private func makeContextMenu() -> NSMenu {
         let menu = NSMenu()
         menu.delegate = self
-        // Sync state lost its header row; refreshed each time the menu opens.
         let status = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         status.isEnabled = false
         menu.addItem(status)

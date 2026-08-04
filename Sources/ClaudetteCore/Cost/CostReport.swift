@@ -1,7 +1,5 @@
 import Foundation
 
-/// The API-equivalent cost picture over the report window, entirely from
-/// local logs. Nothing here leaves the machine.
 public struct CostReport: Sendable, Equatable {
     public struct Day: Sendable, Equatable, Identifiable {
         public let key: DayKey
@@ -17,10 +15,7 @@ public struct CostReport: Sendable, Equatable {
     public struct ModelCost: Sendable, Equatable, Identifiable {
         public let model: ModelID
         public let tally: TokenTally
-        /// nil = no price known: tokens counted, excluded from the dollar
-        /// figure rather than silently priced at zero.
         public let dollars: Double?
-        /// This model's share of `totalDollars`, 0–1.
         public let costShare: Double
         public var id: ModelID { model }
 
@@ -33,20 +28,13 @@ public struct CostReport: Sendable, Equatable {
     }
 
     public let spanDays: Int
-    /// Oldest → newest, one entry per calendar day, zero-filled.
     public let days: [Day]
     public let totalDollars: Double
-    /// Sorted by dollars descending, unpriced models last.
     public let models: [ModelCost]
-    /// Models seen in the logs that the price table has no entry for.
     public let unpricedModels: [ModelID]
     public let generatedAt: Date
     public let scanDurationMs: Int
-    /// Every `.jsonl` found, including the ones already fully consumed.
     public let filesDiscovered: Int
-    /// Each day as a fraction of the busiest, so every chart drawn from this
-    /// report scales identically. Derived once — `days` never changes after
-    /// init, and the panel re-renders at 1 Hz.
     public let dailyFractionOfPeak: [Double]
 
     public init(
@@ -74,7 +62,6 @@ public struct CostReport: Sendable, Equatable {
         }
     }
 
-    /// Builds the report from the cache's day → model → tally tallies.
     public static func build(
         dailyTallies: [DayKey: [ModelID: TokenTally]],
         prices: PriceTable,
@@ -136,12 +123,8 @@ public struct CostReport: Sendable, Equatable {
     }
 }
 
-/// API-equivalent spend vs what the subscription actually costs.
 public struct CostComparison: Sendable, Equatable {
-    /// API equivalent divided by subscription cost, e.g. 4.7.
     public let subscriptionMultiple: Double?
-    /// The day accumulated API-equivalent spend crossed the subscription
-    /// price, or nil if it never did inside the window.
     public let breakEvenDay: DayKey?
     public let monthlyPrice: Double
 
@@ -161,7 +144,6 @@ public struct CostComparison: Sendable, Equatable {
     }
 }
 
-/// A subscription tier: how it is named, and what it lists for.
 public struct PlanTier: Sendable, Equatable, Identifiable {
     public let id: String
     public let displayName: String
@@ -173,8 +155,6 @@ public struct PlanTier: Sendable, Equatable, Identifiable {
         self.monthlyUSD = monthlyUSD
     }
 
-    /// The sentinel the settings picker stores when the user wants the tier
-    /// taken from their account rather than chosen by hand.
     public static let automaticID = "auto"
 
     public static let known: [PlanTier] = [
@@ -184,8 +164,6 @@ public struct PlanTier: Sendable, Equatable, Identifiable {
         PlanTier(id: "team", displayName: "Team", monthlyUSD: 30),
     ]
 
-    /// Accepts `default_claude_max_5x`-style tier IDs from the usage response
-    /// or `max` / `pro` subscription types from the credential store.
     public static func resolve(_ raw: String?) -> PlanTier? {
         guard let raw = raw?.lowercased(), !raw.isEmpty else { return nil }
         if raw.contains("max_20x") || raw.contains("20x") {
@@ -203,8 +181,6 @@ public struct PlanTier: Sendable, Equatable, Identifiable {
         return nil
     }
 
-    /// The tier to bill against: an explicit choice wins, otherwise whatever
-    /// the account reported. Nil when neither is known.
     public static func effective(override: String, detected: String?) -> PlanTier? {
         if override != automaticID, let chosen = known.first(where: { $0.id == override }) {
             return chosen

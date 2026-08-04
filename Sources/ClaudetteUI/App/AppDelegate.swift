@@ -3,17 +3,10 @@ import Combine
 import SwiftUI
 import ClaudetteCore
 
-/// The composition root. Builds every service once, injects them downward, and
-/// wires the system observers. No business logic lives here — anything that
-/// decides something belongs in `ClaudetteCore` or `ClaudetteUI`, both of
-/// which can be tested.
 @MainActor
 public final class AppDelegate: NSObject, NSApplicationDelegate {
     public override init() { super.init() }
 
-    /// Everything built at launch, in one value, so the delegate has no
-    /// implicitly-unwrapped optionals and the dependency graph is one thing
-    /// you can read top to bottom.
     private struct Services {
         let settings: AppSettings
         let analytics: any AnalyticsReporting
@@ -98,11 +91,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         services?.analytics.flush()
     }
 
-    // MARK: Wiring
-
-    /// A build without a project key gets `DisabledAnalytics` — dev builds and
-    /// forks send nothing at all, rather than carrying a misconfigured
-    /// reporter that fails silently at runtime.
     private func makeAnalytics(appSupport: URL) -> any AnalyticsReporting {
         let token = (Bundle.main.object(forInfoDictionaryKey: "ClaudettePostHogAPIKey") as? String) ?? ""
         let host = (Bundle.main.object(forInfoDictionaryKey: "ClaudettePostHogHost") as? String)
@@ -114,9 +102,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             installID: InstallID.get(appSupportDirectory: appSupport))
     }
 
-    /// Applies the side effect each setting implies. The switch is over a
-    /// typed key, so adding a setting without wiring it is a compile error
-    /// rather than a silently dead control.
     private func observeSettings(_ settings: AppSettings) {
         settings.changes
             .sink { [weak self] change in
@@ -137,7 +122,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
                 case .extraLogRoots:
                     services.viewModel.refreshCost()
                 case .planTierOverride, .lastHeartbeatDay, .checksForUpdatesAutomatically:
-                    // Read where they are needed; nothing to apply here.
                     break
                 }
             }
@@ -154,8 +138,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let self, let services = self.services else { return }
                 Task { await services.usage.resume() }
                 services.island.reposition()
-                // Assertions do not reliably survive sleep, and re-applying
-                // is not enough — the stale ID has to be dropped first.
                 self.power.renew(preventsSleep: services.settings.preventsSleep)
             })
 
@@ -171,7 +153,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// The two directories the app owns, created once at launch.
 private struct Directories {
     let appSupport: URL
     let caches: URL

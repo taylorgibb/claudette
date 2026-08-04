@@ -16,9 +16,6 @@ public enum AnalyticsProperty: Sendable, Equatable {
     }
 }
 
-/// The complete event list. Deliberately an enum with fixed associated
-/// values: there is no way to attach a free-form property, so no prompt, path,
-/// token, usage percentage or dollar figure can reach the wire by accident.
 public enum AnalyticsEvent: Sendable, Equatable {
     case appLaunched(appVersion: String, osVersion: String, arch: String, isNotchedDisplay: Bool, displayCount: Int)
     case dailyHeartbeat(appVersion: String, daysSinceInstallBucket: String, planTier: String)
@@ -28,8 +25,6 @@ public enum AnalyticsEvent: Sendable, Equatable {
     case usageFetchFailed(statusCode: Int?, failureKind: String, retryCount: Int)
     case credentialsUnavailable(reason: String)
     case costScanFailed(failureKind: String)
-    /// A model appeared in the logs that the price table has no entry for —
-    /// its tokens are counted but excluded from the dollar figure.
     case unpricedModelSeen(modelID: ModelID)
 
     public var name: String {
@@ -90,8 +85,6 @@ public enum AnalyticsEvent: Sendable, Equatable {
     }
 }
 
-/// Coarse buckets, so no event carries a number precise enough to identify
-/// anyone. Each function is named for what it returns, not what it takes.
 public enum AnalyticsBuckets {
     public static func daysSinceInstallBucket(_ days: Int) -> String {
         switch days {

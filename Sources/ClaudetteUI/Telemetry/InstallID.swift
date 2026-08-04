@@ -1,8 +1,5 @@
 import Foundation
 
-/// Random UUID minted on first launch and stored in Application Support.
-/// Never derived from hardware serials, MAC addresses, or the Anthropic
-/// account; deleting app data resets it, which is the correct behaviour.
 enum InstallID {
     static func get(appSupportDirectory: URL) -> String {
         let url = appSupportDirectory.appendingPathComponent("install-id")

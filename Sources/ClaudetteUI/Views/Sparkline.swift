@@ -1,13 +1,6 @@
 import SwiftUI
 
-/// The panel footer: the report window's spend, bled to the silhouette's
-/// edges and deliberately unlabelled.
-///
-/// `Equatable` only takes effect through `.equatable()` at the call site —
-/// SwiftUI does not consult a view's conformance on its own. Without that the
-/// Bézier path is rebuilt on every 1 Hz tick.
 struct Sparkline: View, Equatable {
-    /// Pre-normalized to 0...1 by `CostReport.dailyFractionOfPeak`.
     let values: [Double]
 
     var body: some View {
@@ -30,7 +23,6 @@ struct Sparkline: View, Equatable {
         .padding(.top, Layout.chartTopMargin)
     }
 
-    /// Headroom above the peak so the busiest day never touches the top edge.
     private let topInset: CGFloat = 9
 
     private func points(in size: CGSize) -> [CGPoint] {
@@ -42,8 +34,6 @@ struct Sparkline: View, Equatable {
         }
     }
 
-    /// Quadratic smoothing through segment midpoints — enough to take the
-    /// jaggedness off daily spend without inventing peaks that aren't there.
     private func path(in size: CGSize) -> Path {
         var path = Path()
         let pts = points(in: size)
@@ -59,7 +49,6 @@ struct Sparkline: View, Equatable {
         return path
     }
 
-    /// Drops the stroke down to the baseline at both ends to make the fill.
     private func closed(_ line: Path, in size: CGSize) -> Path {
         guard !line.isEmpty, let end = line.currentPoint else { return line }
         var filled = line

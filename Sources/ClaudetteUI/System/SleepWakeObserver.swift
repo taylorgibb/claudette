@@ -1,7 +1,5 @@
 import AppKit
 
-/// Polling is suspended while the screen is locked or asleep and refreshed
-/// immediately on wake/unlock.
 @MainActor
 final class SleepWakeObserver {
     private let onSleep: @MainActor () -> Void

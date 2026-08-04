@@ -1,11 +1,5 @@
 import Foundation
 
-/// Per-model rates in USD per million tokens. Cache dimensions default to the
-/// standard multipliers when the table omits them: write 1.25× input at 5m
-/// TTL, 2× input at 1h TTL, read 0.1× input.
-///
-/// Every property is a *rate*, unlike the same-named counts on `TokenTally` —
-/// hence the `PerMillion` suffix on all of them.
 public struct ModelPrice: Codable, Sendable, Equatable {
     public var inputPerMillion: Double
     public var outputPerMillion: Double
@@ -35,8 +29,6 @@ public struct ModelPrice: Codable, Sendable, Equatable {
         self.cacheWrite1hPerMillion = cacheWrite1hPerMillion ?? inputPerMillion * 2.0
     }
 
-    // The defaults are applied at decode time rather than through `effective*`
-    // accessors, so a `ModelPrice` in hand always has all five rates.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.init(
@@ -79,7 +71,6 @@ public struct PriceTable: Sendable, Equatable {
         return PriceTable(models: file.models, version: file.version, updatedAt: file.updatedAt)
     }
 
-    /// Ships in the app bundle; the floor that remote refreshes override.
     public static func bundled() -> PriceTable {
         guard
             let url = Bundle.module.url(forResource: "prices", withExtension: "json"),
@@ -91,7 +82,6 @@ public struct PriceTable: Sendable, Equatable {
         return table
     }
 
-    /// Remote overrides by model ID; bundled entries survive unless overridden.
     public func merging(_ override: PriceTable) -> PriceTable {
         var merged = models
         for (key, value) in override.models {
@@ -103,10 +93,6 @@ public struct PriceTable: Sendable, Equatable {
             updatedAt: override.updatedAt ?? updatedAt)
     }
 
-    /// Exact match first, then prefix matching for dated variants:
-    /// `claude-sonnet-4-6-20260514` matches `claude-sonnet-4-6`. The suffix
-    /// after a prefix match must look like a date/`latest`/revision so
-    /// `claude-opus-4-5` never silently picks up `claude-opus-4` pricing.
     public func price(forModel modelID: ModelID) -> ModelPrice? {
         let id = ModelNaming.canonical(modelID)
         if let exact = models[id] {
@@ -127,15 +113,11 @@ public struct PriceTable: Sendable, Equatable {
         guard suffix.hasPrefix("-") else { return false }
         let tail = String(suffix.dropFirst())
         if tail == "latest" { return true }
-        // Date stamp: 20250514 etc.
         if tail.count == 8, tail.allSatisfy(\.isNumber), tail.hasPrefix("20") { return true }
-        // Bedrock-style revision: v2:0, v1
         if tail.hasPrefix("v"), tail.dropFirst().first?.isNumber == true { return true }
         return false
     }
 
-    /// Dollar cost of a tally, or nil for a model with no price. Never
-    /// silently price an unknown model at zero.
     public func dollars(for tally: TokenTally, model: ModelID) -> Double? {
         guard let price = price(forModel: model) else { return nil }
         let million = 1_000_000.0
@@ -147,19 +129,13 @@ public struct PriceTable: Sendable, Equatable {
     }
 }
 
-/// Reading model identifiers. Both halves — matching a price and naming a row
-/// in the UI — parse the same ID shapes, so they live together.
 public enum ModelNaming {
-    /// Lowercased, provider prefix stripped: `anthropic/Claude-Opus-5` →
-    /// `claude-opus-5`.
     public static func canonical(_ id: ModelID) -> ModelID {
         let lowered = id.lowercased()
         guard let slash = lowered.lastIndex(of: "/") else { return lowered }
         return String(lowered[lowered.index(after: slash)...])
     }
 
-    /// Short display name: `claude-opus-4-5-20260114` → `Opus 4.5`. Falls
-    /// back to the raw ID rather than inventing a name.
     public static func displayName(for id: ModelID) -> String {
         var parts = canonical(id).split(separator: "-").map(String.init)
         if parts.first == "claude" { parts.removeFirst() }
@@ -168,16 +144,11 @@ public enum ModelNaming {
         }
         guard !parts.isEmpty else { return id }
         var family = parts.removeFirst()
-        // "3-5-sonnet" style: family digits before the name.
         if family.allSatisfy(\.isNumber),
            let nameIndex = parts.firstIndex(where: { !$0.allSatisfy(\.isNumber) }) {
             let version = ([family] + parts[..<nameIndex]).joined(separator: ".")
             return "\(parts[nameIndex].capitalized) \(version)"
         }
-        // Anything left that isn't a version number means this ID is not
-        // `claude-<family>-<version>` at all. Echo it whole rather than
-        // truncating it to its first word — an unpriced model is named in the
-        // footnote, and a half-name there is worse than a long one.
         guard parts.allSatisfy({ $0.allSatisfy(\.isNumber) }) else { return id }
         let version = parts.joined(separator: ".")
         family = family.capitalized
@@ -185,7 +156,6 @@ public enum ModelNaming {
     }
 }
 
-/// Keeps the price table fresh: bundled floor, remote overrides, weekly check.
 public actor PriceTableLoader {
     private let remoteURL: URL?
     private let cacheDirectory: URL?
@@ -202,8 +172,6 @@ public actor PriceTableLoader {
         self.transport = transport
     }
 
-    /// Deferred for the same reason as `CostEngine`'s cache: an actor's `init`
-    /// runs on the caller, and this one reads the bundle and the disk cache.
     public func current() -> PriceTable {
         if let loadedTable { return loadedTable }
         var table = PriceTable.bundled()
@@ -227,10 +195,6 @@ public actor PriceTableLoader {
         try? FileManager.default.createDirectory(
             at: cacheDirectory, withIntermediateDirectories: true)
 
-        // The stamp is written whether or not the fetch works. Stamping only
-        // on success makes an offline machine re-attempt on every cost
-        // refresh forever; backdating a failure means it retries in hours
-        // rather than sitting out the full week.
         func stamp(nextCheckIn delay: TimeInterval) {
             let value = now.timeIntervalSince1970 - (Intervals.priceTableCheck - delay)
             try? Data(String(value).utf8).write(to: stampURL, options: .atomic)

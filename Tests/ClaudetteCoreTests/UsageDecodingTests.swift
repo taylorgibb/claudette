@@ -1,8 +1,6 @@
 import XCTest
 @testable import ClaudetteCore
 
-/// `limits[]` is the whole contract: which limits exist depends on the plan,
-/// and any of them can be absent.
 final class UsageDecodingTests: XCTestCase {
     private let payload = """
     {
@@ -51,8 +49,6 @@ final class UsageDecodingTests: XCTestCase {
         XCTAssertNil(snapshot.weeklyForModel)
     }
 
-    /// An unrecognised kind must not fail the decode and take the whole array
-    /// with it — a new limit kind should cost us that one row, no more.
     func testUnknownKindIsKeptAsOther() throws {
         let json = """
         {"limits":[{"kind":"monthly_new_thing","percent":1,"resets_at":null},
@@ -64,8 +60,6 @@ final class UsageDecodingTests: XCTestCase {
         XCTAssertEqual(snapshot.session?.percentUsed, 50)
     }
 
-    /// Decoding the array in one go means a single malformed row throws away
-    /// every other limit, leaving a snapshot with no windows and no error.
     func testOneMalformedRowCostsOnlyThatRow() throws {
         let json = """
         {"limits":[{"kind":"session","percent":7,"resets_at":null},
@@ -108,45 +102,23 @@ final class UsageDecodingTests: XCTestCase {
     func testPercentAccessorsClampAndInvert() {
         XCTAssertEqual(LimitWindow(percentUsed: 150, resetsAt: nil).fractionUsed, 1.0)
         XCTAssertEqual(LimitWindow(percentUsed: -5, resetsAt: nil).fractionUsed, 0.0)
-        // The number the island actually renders is what's left, not what's used.
         XCTAssertEqual(LimitWindow(percentUsed: 17, resetsAt: nil).percentRemaining, 83)
         XCTAssertEqual(LimitWindow(percentUsed: 150, resetsAt: nil).percentRemaining, 0)
     }
 }
 
-final class CredentialParsingTests: XCTestCase {
-    private func json(_ s: String) -> Data { Data(s.utf8) }
-
-    func testParsesHealthyCredentials() throws {
-        let future = (Date().timeIntervalSince1970 + 3600) * 1000
-        let data = json("""
-        {"claudeAiOauth": {"accessToken": "sk-ant-oat01-abc", "refreshToken": "r",
-         "expiresAt": \(future), "scopes": ["user:inference", "user:profile"],
-         "subscriptionType": "max"}}
-        """)
-        let result = CredentialStore.parse(data, source: .credentialsFile)
-        guard case .success(let creds) = result else {
-            return XCTFail("expected success, got \(result)")
-        }
-        XCTAssertEqual(creds.accessToken, "sk-ant-oat01-abc")
-        XCTAssertEqual(creds.subscriptionType, "max")
+final class CredentialValidationTests: XCTestCase {
+    func testHealthyCredentialsPass() {
+        let creds = Credentials(
+            accessToken: "sk-ant-oat01-abc", expiresAt: Date(timeIntervalSinceNow: 3600),
+            scopes: ["user:inference", "user:profile"])
         guard case .success = CredentialStore.validate(creds) else {
             return XCTFail("expected validation to pass")
         }
     }
 
-    func testMcpOnlyKeychainShapeIsDistinctError() {
-        let data = json(#"{"mcpOAuth": {"someServer": {"accessToken": "x"}}}"#)
-        guard case .failure(let reason) = CredentialStore.parse(data, source: .keychain) else {
-            return XCTFail("expected failure")
-        }
-        XCTAssertEqual(reason, .mcpOnly)
-    }
-
     func testInferenceOnlyScopeFailsValidation() {
-        let creds = Credentials(
-            accessToken: "t", expiresAt: nil,
-            scopes: ["user:inference"], subscriptionType: nil, source: .credentialsFile)
+        let creds = Credentials(accessToken: "t", expiresAt: nil, scopes: ["user:inference"])
         guard case .failure(let reason) = CredentialStore.validate(creds) else {
             return XCTFail("expected failure")
         }
@@ -155,18 +127,10 @@ final class CredentialParsingTests: XCTestCase {
 
     func testExpiredTokenFailsValidation() {
         let creds = Credentials(
-            accessToken: "t", expiresAt: Date(timeIntervalSinceNow: -60),
-            scopes: nil, subscriptionType: nil, source: .keychain)
+            accessToken: "t", expiresAt: Date(timeIntervalSinceNow: -60), scopes: nil)
         guard case .failure(let reason) = CredentialStore.validate(creds) else {
             return XCTFail("expected failure")
         }
         XCTAssertEqual(reason, .expired)
-    }
-
-    func testGarbageIsMalformed() {
-        guard case .failure(let reason) = CredentialStore.parse(json("not json"), source: .credentialsFile) else {
-            return XCTFail("expected failure")
-        }
-        XCTAssertEqual(reason, .malformed)
     }
 }

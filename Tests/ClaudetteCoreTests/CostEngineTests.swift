@@ -39,9 +39,6 @@ final class CostEngineTests: XCTestCase {
         ISO8601.format(Date().addingTimeInterval(-3600))
     }
 
-    /// Scan only the fixture tree. Without the injected resolver the engine
-    /// also walks the developer's real `~/.claude` logs, and every assertion
-    /// below becomes a property of whoever is running the suite.
     private func makeEngine() -> CostEngine {
         CostEngine(cacheURL: cacheURL, logRoots: FixedLogRoots([logsDir]))
     }
@@ -57,7 +54,6 @@ final class CostEngineTests: XCTestCase {
         try Data(content.utf8).write(to: logsDir.appendingPathComponent("a.jsonl"))
 
         let report = await makeEngine().refresh(prices: prices)
-        // Dedup keeps one copy of m1: input 110, output 55, cw5m 1000, read 2000.
         let inputDollars: Double = 110.0 * 5.0
         let outputDollars: Double = 55.0 * 25.0
         let cacheWriteDollars: Double = 1000.0 * 6.25
@@ -69,7 +65,6 @@ final class CostEngineTests: XCTestCase {
     }
 
     func testCrossFileDuplicatesRemoved() async throws {
-        // Resumed sessions copy history into a new file; dedup must be global.
         let ts = recentTimestamp()
         let entry = line(id: "m1", request: "r1", input: 100, output: 100, timestamp: ts)
         try Data((entry + "\n").utf8).write(to: logsDir.appendingPathComponent("a.jsonl"))
@@ -79,9 +74,6 @@ final class CostEngineTests: XCTestCase {
         XCTAssertEqual(report.models.first?.tally.input, 100)
     }
 
-    /// Turns with neither a message ID nor a request ID have no identity to
-    /// dedup on. Hashing the empty pair would fold every one of them into a
-    /// single entry and silently drop the rest.
     func testTurnsWithoutAnyIDAreAllCounted() async throws {
         let ts = recentTimestamp()
         let content = [
@@ -104,11 +96,6 @@ final class CostEngineTests: XCTestCase {
         let engine = makeEngine()
         _ = await engine.refresh(prices: prices)
 
-        // Corrupt the already-consumed head, and append a new line, both
-        // through the same handle so the inode is preserved — replacing the
-        // file would trip the rebuild check and prove nothing. If the engine
-        // re-read from zero this garbage would change the totals; a true tail
-        // read never sees it.
         let second = line(id: "m2", request: "r2", input: 7, output: 0, timestamp: ts) + "\n"
         let handle = try FileHandle(forWritingTo: fileURL)
         try handle.seek(toOffset: 0)
@@ -141,9 +128,6 @@ final class CostEngineTests: XCTestCase {
         XCTAssertEqual(after.models.first?.tally.input, 100)
     }
 
-    /// A file rewritten in place to a *larger* size keeps its inode and passes
-    /// the size check, so only the timestamp reveals that resuming from the
-    /// stored offset would parse unrelated bytes.
     func testFileRewrittenBackwardsInTimeForcesRebuild() async throws {
         let ts = recentTimestamp()
         let fileURL = logsDir.appendingPathComponent("a.jsonl")
@@ -174,7 +158,6 @@ final class CostEngineTests: XCTestCase {
         _ = await makeEngine().refresh(prices: prices)
         XCTAssertTrue(FileManager.default.fileExists(atPath: cacheURL.path))
 
-        // A fresh engine loads the cache; with no file growth it re-reads nothing.
         let report = await makeEngine().refresh(prices: prices)
         XCTAssertEqual(report.models.first?.tally.input, 42)
     }
@@ -202,8 +185,6 @@ final class CostCacheTests: XCTestCase {
         LoggedTurn(dedupHash: hash, model: "m", day: day, tally: TokenTally(input: input))
     }
 
-    /// The dedup set used to be a single flat blob that `prune` never touched,
-    /// so it grew for the life of the install and was re-encoded every refresh.
     func testPruneDropsDedupHashesWithTheirDay() {
         var cache = CostCache()
         let old = DayKey(Date(timeIntervalSinceNow: -200 * 86_400))
@@ -249,8 +230,6 @@ final class CostCacheTests: XCTestCase {
         XCTAssertEqual(decoded.seenHashes[day]?.count, 5)
     }
 
-    /// A day bucket is keyed by the readable `2026-08-02` string, not by the
-    /// alternating array Codable falls back to for non-String keys.
     func testDaysEncodeAsAJSONObject() throws {
         var cache = CostCache()
         cache.addIfUnseen(turn(1, day: DayKey(year: 2026, month: 8, day: 2)))

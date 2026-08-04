@@ -2,8 +2,6 @@ import XCTest
 import ClaudetteCore
 @testable import ClaudetteUI
 
-/// Which rows a plan shows, and what each failure reads like. All of this
-/// used to live in an executable target with no test target attached.
 final class UsagePresenterTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
@@ -34,8 +32,6 @@ final class UsagePresenterTests: XCTestCase {
         XCTAssertTrue(presenter.gauges.allSatisfy(\.isUnavailable))
     }
 
-    /// The row keeps its slot even when the plan has no such limit, so the
-    /// island never resizes under the pointer as limits come and go.
     func testMissingLimitBecomesAnUnavailableRowNotAMissingOne() {
         let presenter = UsagePresenter(
             state: state(limits: [limit(.session, 20)]), now: now)
@@ -52,8 +48,6 @@ final class UsagePresenterTests: XCTestCase {
         XCTAssertEqual(presenter.gauges[2].window?.percentUsed, 12)
     }
 
-    /// One casing policy, at the view layer. The API returns "Fable"; anything
-    /// arriving lowercase is raised rather than shown as-is.
     func testModelNameCasingIsNormalisedOnce() {
         let presenter = UsagePresenter(
             state: state(limits: [limit(.weeklyPerModel, 1, model: "opus")]), now: now)
@@ -67,9 +61,6 @@ final class UsagePresenterTests: XCTestCase {
         XCTAssertEqual(presenter.gauges[2].duration, 7 * 86_400)
     }
 
-    /// The collapsed bar shows the first two limits that exist, so an account
-    /// without a session window promotes the next one up rather than showing
-    /// a blank.
     func testPillsPromoteThroughMissingLimits() {
         let presenter = UsagePresenter(
             state: state(limits: [
@@ -88,19 +79,14 @@ final class UsagePresenterTests: XCTestCase {
     }
 
     func testEveryActionableFailureSaysWhatToRun() {
-        let phases: [UsageState.Phase] = [
-            .unauthorized,
-            .scopeMissing,
-            .credentialsUnavailable(.noKeychainItem),
-            .credentialsUnavailable(.expired),
-            .credentialsUnavailable(.mcpOnly),
-        ]
+        var phases: [UsageState.Phase] = [.unauthorized, .scopeMissing]
+        phases += CredentialFailureReason.allCases.map { .credentialsUnavailable($0) }
         for phase in phases {
             let text = UsagePresenter(state: state(phase), now: now).problemText
             XCTAssertNotNil(text, "\(phase) has no guidance")
             XCTAssertTrue(
-                text?.contains("claude login") ?? false,
-                "\(phase) doesn't say what to run: \(text ?? "nil")")
+                text?.contains("Sign in") ?? false,
+                "\(phase) doesn't say what to do: \(text ?? "nil")")
         }
     }
 
@@ -109,8 +95,6 @@ final class UsagePresenterTests: XCTestCase {
         XCTAssertNil(UsagePresenter(state: state(.initializing), now: now).problemText)
     }
 
-    /// A stale reading beats an error the user can do nothing about, so a
-    /// transient outage stays quiet as long as there is something to show.
     func testTransientFailuresStayQuietWhenThereIsStillAReadingOnScreen() {
         XCTAssertNil(UsagePresenter(state: state(.offline), now: now).problemText)
         XCTAssertNil(

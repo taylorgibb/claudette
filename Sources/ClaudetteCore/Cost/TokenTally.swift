@@ -1,7 +1,5 @@
 import Foundation
 
-/// Token counts across the four price dimensions (cache writes split by TTL).
-/// When the log gives no ephemeral breakdown, writes are assumed 5m TTL.
 public struct TokenTally: Codable, Sendable, Equatable {
     public var input: Int64 = 0
     public var output: Int64 = 0

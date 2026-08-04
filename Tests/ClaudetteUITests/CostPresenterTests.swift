@@ -41,7 +41,6 @@ final class CostPresenterTests: XCTestCase {
             plan: PlanTier.known.first { $0.id == "max_20x" })
         XCTAssertEqual(presenter.totalText, "$42.50")
         XCTAssertEqual(presenter.planLabel, "SUBSCRIPTION · MAX 20X")
-        // Above 100 the cents stop carrying information.
         XCTAssertEqual(presenter.planPriceText, "$200")
         XCTAssertEqual(presenter.spanLabel, "API EQUIVALENT · 30D")
     }
@@ -62,8 +61,6 @@ final class CostPresenterTests: XCTestCase {
         XCTAssertEqual(presenter.multipleText, "4.7×")
     }
 
-    /// An unpriced model shows a dash, never "$0.00" — pricing an unknown
-    /// model at zero is the one thing the cost path must never do.
     func testUnpricedModelRendersADashAndIsNamedInTheFootnote() {
         let presenter = CostPresenter(
             report: report(

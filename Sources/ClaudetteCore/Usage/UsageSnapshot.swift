@@ -1,9 +1,6 @@
 import Foundation
 
-/// How full one rate-limit window is, and when it empties.
 public struct LimitWindow: Codable, Sendable, Equatable {
-    /// 0–100. Zero when no window is active. The wire calls this
-    /// `utilization`; everything downstream calls it `percentUsed`.
     public let percentUsed: Double
     public let resetsAt: Date?
 
@@ -17,23 +14,16 @@ public struct LimitWindow: Codable, Sendable, Equatable {
         case resetsAt = "resets_at"
     }
 
-    /// The same quantity as `percentUsed`, clamped to 0–1 — the form the
-    /// gauges and the colour ramp want.
     public var fractionUsed: Double {
         min(max(percentUsed / 100.0, 0), 1)
     }
 
-    /// The number Claudette actually shows. Percent *remaining*, not used.
     public var percentRemaining: Int {
         Int((100 - min(max(percentUsed, 0), 100)).rounded())
     }
 }
 
-/// One entry of the `limits[]` array — the whole of what the endpoint says
-/// about rate limits. Which limits exist depends on the plan.
 public struct UsageLimit: Codable, Sendable, Equatable {
-    /// Lenient on purpose: an unrecognised kind must not fail the decode and
-    /// take the whole array with it.
     public enum Kind: Sendable, Equatable, Codable {
         case session
         case weeklyAllModels
@@ -63,7 +53,6 @@ public struct UsageLimit: Codable, Sendable, Equatable {
             try container.encode(rawValue)
         }
 
-        /// How long the window spans, so call sites stop re-deriving it.
         public var windowDuration: TimeInterval {
             self == .session ? 5 * 3600 : 7 * 86_400
         }
@@ -111,7 +100,6 @@ public struct UsageLimit: Codable, Sendable, Equatable {
         LimitWindow(percentUsed: percentUsed, resetsAt: resetsAt)
     }
 
-    /// Verbatim from the API ("Fable"); the view owns the casing.
     public var modelName: String? {
         guard kind == .weeklyPerModel, let name = scope?.model?.displayName, !name.isEmpty else {
             return nil
@@ -122,8 +110,6 @@ public struct UsageLimit: Codable, Sendable, Equatable {
     public var windowDuration: TimeInterval { kind.windowDuration }
 }
 
-/// Decoded response of the OAuth usage endpoint. Every window can be absent
-/// depending on plan; never crash on missing keys.
 public struct UsageSnapshot: Codable, Sendable, Equatable {
     public let limits: [UsageLimit]
     public let rateLimitTier: String?
@@ -133,18 +119,14 @@ public struct UsageSnapshot: Codable, Sendable, Equatable {
         self.rateLimitTier = rateLimitTier
     }
 
-    /// The rolling five-hour cap.
     public var session: LimitWindow? {
         limits.first { $0.kind == .session }?.window
     }
 
-    /// The weekly cap across all models.
     public var weekly: LimitWindow? {
         limits.first { $0.kind == .weeklyAllModels }?.window
     }
 
-    /// The model-scoped weekly cap, in the order the API listed it. No local
-    /// ranking table — `limits[]` already says which model it is.
     public var weeklyForModel: UsageLimit? {
         limits.first { $0.modelName != nil }
     }
@@ -160,18 +142,12 @@ public struct UsageSnapshot: Codable, Sendable, Equatable {
         limits = Self.decodeLimitsLeniently(from: container)
     }
 
-    /// Decodes `limits[]` element by element. Decoding the array in one go
-    /// means a single malformed row — a null `percent`, say — throws away
-    /// every other limit and leaves a snapshot with no windows and no error.
     private static func decodeLimitsLeniently(
         from container: KeyedDecodingContainer<CodingKeys>
     ) -> [UsageLimit] {
         guard var array = try? container.nestedUnkeyedContainer(forKey: .limits) else { return [] }
         var limits: [UsageLimit] = []
         while !array.isAtEnd {
-            // A throwing `decode` leaves `currentIndex` where it was, so a bad
-            // element has to be stepped over explicitly. Bailing out if even
-            // that fails keeps this from spinning.
             if let limit = try? array.decode(UsageLimit.self) {
                 limits.append(limit)
             } else if (try? array.decode(SkippedElement.self)) == nil {
@@ -181,8 +157,6 @@ public struct UsageSnapshot: Codable, Sendable, Equatable {
         return limits
     }
 
-    /// Consumes one element of any shape, so a bad `limits[]` row can be
-    /// skipped without abandoning the rest of the array.
     private struct SkippedElement: Decodable {
         init(from decoder: Decoder) throws {}
     }
@@ -192,8 +166,6 @@ public struct UsageSnapshot: Codable, Sendable, Equatable {
     }
 }
 
-/// Snapshot plus sync time, persisted so the app can render the last known
-/// numbers immediately on launch.
 public struct PersistedUsage: Codable, Sendable, Equatable {
     public let snapshot: UsageSnapshot
     public let syncedAt: Date

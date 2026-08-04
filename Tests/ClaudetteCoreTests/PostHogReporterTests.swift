@@ -1,8 +1,6 @@
 import XCTest
 @testable import ClaudetteCore
 
-/// The privacy promise is the reason this file exists: events carry only what
-/// `AnalyticsEvent` declares, and free-form text is scrubbed on the way out.
 final class PostHogReporterTests: XCTestCase {
     private let host = URL(string: "https://example.invalid")!
 
@@ -55,8 +53,6 @@ final class PostHogReporterTests: XCTestCase {
         XCTAssertEqual(try batch(from: transport).count, 2)
     }
 
-    /// Error text is the one free-form thing that can leave the process, so it
-    /// goes through the redactor first.
     func testErrorTextIsScrubbed() async throws {
         let transport = StubTransport()
         let reporter = makeReporter(transport: transport)
@@ -75,8 +71,6 @@ final class PostHogReporterTests: XCTestCase {
         XCTAssertTrue(message.contains("[token]"))
     }
 
-    /// A failed send is dropped rather than retried into a queue that grows
-    /// without bound. Telemetry must never be able to degrade the app.
     func testAFailedSendIsDroppedNotRetained() async throws {
         struct Offline: Error {}
         let transport = StubTransport(error: Offline())

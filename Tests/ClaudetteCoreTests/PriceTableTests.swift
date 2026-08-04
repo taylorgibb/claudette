@@ -25,11 +25,9 @@ final class PriceTableTests: XCTestCase {
     }
 
     func testDifferentModelNeverBleedsThroughPrefix() {
-        // claude-opus-4-5 must NOT inherit claude-opus-4 pricing.
         let table = PriceTable(models: ["claude-opus-4": ModelPrice(inputPerMillion: 15, outputPerMillion: 75)])
         XCTAssertNil(table.price(forModel: "claude-opus-4-5"))
         XCTAssertNil(table.price(forModel: "claude-opus-4-5-20260114"))
-        // But a real dated variant of opus-4 still matches.
         XCTAssertEqual(table.price(forModel: "claude-opus-4-20250514")?.inputPerMillion, 15)
     }
 
@@ -47,7 +45,6 @@ final class PriceTableTests: XCTestCase {
             cacheWrite5m: 1_000_000,
             cacheWrite1h: 1_000_000,
             cacheRead: 1_000_000)
-        // 10 + 20 + 12.5 (1.25x) + 20 (2x) + 1 (0.1x)
         XCTAssertEqual(table.dollars(for: tally, model: "m")!, 63.5, accuracy: 1e-9)
     }
 
@@ -60,8 +57,6 @@ final class PriceTableTests: XCTestCase {
         XCTAssertEqual(price.cacheWrite1hPerMillion, 30)
     }
 
-    /// Rates omitted by the table are filled in at decode time, so a
-    /// `ModelPrice` in hand always has all five.
     func testDerivedCacheRatesSurviveDecoding() throws {
         let json = #"{"version":1,"models":{"m":{"input":10,"output":20}}}"#
         let table = try PriceTable.load(from: Data(json.utf8))
@@ -76,8 +71,6 @@ final class PriceTableTests: XCTestCase {
         XCTAssertEqual(ModelNaming.displayName(for: "anthropic/claude-sonnet-5"), "Sonnet 5")
         XCTAssertEqual(ModelNaming.displayName(for: "claude-3-5-sonnet"), "Sonnet 3.5")
         XCTAssertEqual(ModelNaming.displayName(for: "claude-fable-5"), "Fable 5")
-        // Nothing recognisable: echo the ID whole rather than truncating it
-        // to its first word — unpriced models are named in a footnote.
         XCTAssertEqual(ModelNaming.displayName(for: "mystery"), "Mystery")
         XCTAssertEqual(
             ModelNaming.displayName(for: "totally-future-model"), "totally-future-model")

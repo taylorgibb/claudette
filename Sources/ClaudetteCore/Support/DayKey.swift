@@ -1,16 +1,5 @@
 import Foundation
 
-/// A local-calendar day, e.g. `2026-08-02`. The bucket every cost tally is
-/// filed under.
-///
-/// Deliberately a type rather than a `String`: it is used as a dictionary key
-/// alongside `ModelID` (also a String), and untyped `[String: [String: _]]`
-/// gives no clue which nesting level is which.
-///
-/// Resolved through `Calendar.current` on every call rather than a cached
-/// formatter. This app runs for weeks at a time, so a frozen time zone would
-/// silently mis-file spend across the day boundary after travel or a DST
-/// change — and those keys then persist in the cache.
 public struct DayKey: Hashable, Sendable, Comparable, Codable, CustomStringConvertible {
     public let year: Int
     public let month: Int
@@ -41,8 +30,6 @@ public struct DayKey: Hashable, Sendable, Comparable, Codable, CustomStringConve
 
     public var description: String { rawValue }
 
-    /// Midnight local time on this day, or nil if the components don't name a
-    /// real instant (a DST spring-forward gap).
     public var startOfDay: Date? {
         Calendar.current.date(from: DateComponents(year: year, month: month, day: day))
     }
@@ -51,7 +38,6 @@ public struct DayKey: Hashable, Sendable, Comparable, Codable, CustomStringConve
         (lhs.year, lhs.month, lhs.day) < (rhs.year, rhs.month, rhs.day)
     }
 
-    // Encoded as the plain `2026-08-02` string, not as three fields.
     public init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
         guard let parsed = DayKey(rawValue: raw) else {
@@ -68,9 +54,6 @@ public struct DayKey: Hashable, Sendable, Comparable, Codable, CustomStringConve
     }
 }
 
-/// Lets `[DayKey: _]` encode as a JSON object keyed by `2026-08-02` rather
-/// than as a flat alternating array, which is what `Codable` falls back to for
-/// non-String dictionary keys.
 extension DayKey: CodingKeyRepresentable {
     private struct Key: CodingKey {
         let stringValue: String
@@ -87,8 +70,4 @@ extension DayKey: CodingKeyRepresentable {
     }
 }
 
-/// A Claude model identifier, lowercased, e.g. `claude-opus-5`. An alias
-/// rather than a type: it is compared, prefix-matched and used as a dictionary
-/// key exactly like the `String` it is, and only exists to say which `String`
-/// a nested dictionary's keys are.
 public typealias ModelID = String

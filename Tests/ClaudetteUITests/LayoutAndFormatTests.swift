@@ -16,8 +16,6 @@ final class IslandLayoutTests: XCTestCase {
     func testCollapsedBarStraddlesTheNotch() {
         let layout = IslandLayout(geometry: geometry())
         XCTAssertEqual(layout.collapsedSize.width, 180 + Layout.pillWidth * 2)
-        // Fixed height regardless of the menu bar, so the bar reads the same
-        // on notched and synthetic displays.
         XCTAssertEqual(layout.collapsedSize.height, Layout.collapsedHeight)
         XCTAssertEqual(
             IslandLayout(geometry: geometry(notchHeight: 24)).collapsedSize.height,
@@ -32,7 +30,6 @@ final class IslandLayoutTests: XCTestCase {
         XCTAssertEqual(measured.expandedSize.height, 217)
     }
 
-    /// A narrow notch must not make the panel narrower than its content.
     func testExpandedWidthNeverDropsBelowThePanelWidth() {
         let layout = IslandLayout(geometry: geometry(notchWidth: 40))
         XCTAssertEqual(layout.expandedSize.width, Layout.panelWidth)
@@ -48,8 +45,6 @@ final class IslandLayoutTests: XCTestCase {
 final class FormatTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
-    /// Claudette shows what is *left*, not what is used. Getting this
-    /// backwards is the single most visible thing the app could get wrong.
     func testPercentIsAlwaysRemaining() {
         XCTAssertEqual(Format.percentRemaining(LimitWindow(percentUsed: 17, resetsAt: nil)), "83%")
         XCTAssertEqual(Format.percentRemaining(LimitWindow(percentUsed: 0, resetsAt: nil)), "100%")
@@ -122,7 +117,6 @@ final class UpdateCheckerTests: XCTestCase {
         XCTAssertFalse(UpdateChecker.isNewer("1.1.9", than: "1.2.0"))
     }
 
-    /// Every local run would otherwise nag about an update.
     func testDevBuildsAreNeverBehind() {
         XCTAssertFalse(UpdateChecker.isNewer("99.0.0", than: "dev"))
     }

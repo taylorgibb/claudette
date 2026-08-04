@@ -22,7 +22,6 @@ final class LogScannerTests: XCTestCase {
     func testParsesAssistantLinesOnly() throws {
         let url = try fixture("dup-stream")
         let result = try LogScanner.scanFile(at: url, from: 0)
-        // 3 duplicate streaming chunks + 1 distinct message; user/junk lines skipped.
         XCTAssertEqual(result.turns.count, 4)
         XCTAssertEqual(result.turns[0].model, "claude-opus-4-5")
         XCTAssertEqual(result.turns[0].tally.input, 100)
@@ -35,13 +34,9 @@ final class LogScannerTests: XCTestCase {
         let url = try fixture("dup-stream")
         let result = try LogScanner.scanFile(at: url, from: 0)
         let hashes = Set(result.turns.compactMap(\.dedupHash))
-        // 3 chunks of msg_01 collapse to one hash; msg_02 is distinct.
         XCTAssertEqual(hashes.count, 2)
     }
 
-    /// A turn with no identity at all gets no hash. Hashing the empty pair
-    /// would give every such turn the same key, so all but the first would be
-    /// discarded as duplicates.
     func testMissingIDsProduceNoDedupHash() {
         XCTAssertNil(LogScanner.dedupHash(messageID: nil, requestID: nil))
         XCTAssertNil(LogScanner.dedupHash(messageID: "", requestID: ""))
@@ -58,7 +53,6 @@ final class LogScannerTests: XCTestCase {
         let turn = try XCTUnwrap(result.turns.first)
         XCTAssertEqual(turn.tally.cacheWrite5m, 800)
         XCTAssertEqual(turn.tally.cacheWrite1h, 200)
-        // The aggregate cache_creation_input_tokens must not be double counted.
         XCTAssertEqual(turn.tally.total, 800 + 200 + 10 + 5 + 300)
     }
 
@@ -95,8 +89,6 @@ final class LogScannerTests: XCTestCase {
         XCTAssertEqual(result.turns.count, 1)
         XCTAssertEqual(result.consumedOffset, UInt64(head.count))
 
-        // Once the line completes, an incremental pass from the stored
-        // offset picks it up.
         let rest = #"age":{"id":"m2","model":"claude-opus-4-5","usage":{"input_tokens":9,"output_tokens":1}}}"#
         let handle = try FileHandle(forWritingTo: url)
         try handle.seekToEnd()
@@ -126,7 +118,6 @@ final class LogScannerTests: XCTestCase {
     }
 
     func testFNV1aIsStable() {
-        // Persisted dedup depends on this value never changing.
         XCTAssertEqual(Hash.fnv1a64(""), 0xcbf2_9ce4_8422_2325)
         XCTAssertEqual(Hash.fnv1a64("a"), 0xaf63_dc4c_8601_ec8c)
     }
@@ -147,17 +138,14 @@ final class DayKeyTests: XCTestCase {
         XCTAssertLessThan(DayKey(year: 2026, month: 9, day: 1), DayKey(year: 2026, month: 10, day: 1))
     }
 
-    /// The formatter used to be a static that captured `TimeZone.current`
-    /// once. This app runs for weeks, so a frozen zone silently mis-files
-    /// spend across the day boundary after travel or a DST change.
     func testResolvesAgainstTheCurrentTimeZoneNotAFrozenOne() {
         let instant = Date(timeIntervalSince1970: 1_800_000_000)
         let previous = NSTimeZone.default
         defer { NSTimeZone.default = previous }
 
-        NSTimeZone.default = TimeZone(identifier: "Pacific/Kiritimati")!  // UTC+14
+        NSTimeZone.default = TimeZone(identifier: "Pacific/Kiritimati")!
         let east = DayKey(instant)
-        NSTimeZone.default = TimeZone(identifier: "Pacific/Midway")!      // UTC-11
+        NSTimeZone.default = TimeZone(identifier: "Pacific/Midway")!
         let west = DayKey(instant)
 
         XCTAssertNotEqual(east, west, "the same instant falls on different local days")

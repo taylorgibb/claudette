@@ -2,7 +2,6 @@ import SwiftUI
 import AppKit
 import ClaudetteCore
 
-/// One screen, three rows; everything else is automatic or on the context menu.
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var viewModel: IslandViewModel
@@ -50,6 +49,22 @@ struct SettingsView: View {
                         .labelsHidden()
                 }
 
+                divider
+
+                settingRow("Claude Account", detail: accountDetail) {
+                    if viewModel.isSignedIn {
+                        Button("Sign Out") { viewModel.signOut() }
+                    } else if viewModel.signInPhase == .waiting {
+                        HStack(spacing: 10) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Button("Cancel") { viewModel.cancelSignIn() }
+                        }
+                    } else {
+                        Button("Sign In with Claude") { viewModel.signInWithClaude() }
+                    }
+                }
+
             }
             .padding(.horizontal, 28)
             .padding(.top, 24)
@@ -78,7 +93,6 @@ struct SettingsView: View {
             .frame(height: 1)
     }
 
-    /// Title, optional sub-caption, trailing control.
     private func settingRow<Control: View>(
         _ title: String,
         detail: String? = nil,
@@ -100,8 +114,17 @@ struct SettingsView: View {
         }
     }
 
-    /// The detected tier belongs in the caption, not as a picker row — naming
-    /// it there duplicated whichever tier it matched.
+    private var accountDetail: String {
+        if viewModel.isSignedIn {
+            return "Signed in. Claudette keeps its own token — no more keychain prompts."
+        }
+        switch viewModel.signInPhase {
+        case .waiting: return "Finish signing in from your browser."
+        case .failed: return "Sign-in didn't complete. Try again."
+        case .idle: return "One-time browser sign-in that replaces the keychain prompts."
+        }
+    }
+
     private var detectedPlanDetail: String {
         guard let detected = PlanTier.resolve(viewModel.usage.planTier) else {
             return "Nothing detected yet."
@@ -110,13 +133,6 @@ struct SettingsView: View {
     }
 }
 
-/// Shows the one settings window.
-///
-/// The app is an `.accessory` — no Dock tile, no menu bar — so a plain
-/// `makeKeyAndOrderFront` leaves the window behind whatever the user was in.
-/// Switching to `.regular` for as long as it is open is what brings it
-/// forward; `AppMenu` supplies the menu bar that then has to exist, which is
-/// also where ⌘W, ⌘Q and the Edit-menu clipboard shortcuts come from.
 @MainActor
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
@@ -125,7 +141,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         if window == nil {
             let controller = NSHostingController(
                 rootView: SettingsView(settings: settings, viewModel: viewModel))
-            // The screen is fixed-width and self-sizing.
             controller.sizingOptions = [.preferredContentSize]
             let newWindow = NSWindow(contentViewController: controller)
             newWindow.styleMask = [.titled, .closable, .miniaturizable]
@@ -142,7 +157,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        // Back to an accessory: no Dock tile, no app switcher entry.
         NSApp.setActivationPolicy(.accessory)
     }
 }

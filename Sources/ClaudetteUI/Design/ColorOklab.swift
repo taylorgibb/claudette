@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// Minimal Oklab interpolation (Björn Ottosson's transform). sRGB
-/// interpolation through the gauge stops goes muddy brown in the middle;
-/// Oklab keeps chroma up.
 struct OklabColor {
     var L: Double
     var a: Double

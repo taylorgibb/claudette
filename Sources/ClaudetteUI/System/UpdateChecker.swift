@@ -1,12 +1,8 @@
 import Foundation
 import ClaudetteCore
 
-/// Lightweight update check against GitHub releases: notify-and-link only,
-/// once a day when enabled.
 @MainActor
 final class UpdateChecker {
-    /// The newest release tag, if it is ahead of what is running. Nil means
-    /// up to date, not "not checked".
     private(set) var availableVersion: String? {
         didSet {
             guard availableVersion != oldValue else { return }
@@ -56,9 +52,6 @@ final class UpdateChecker {
         availableVersion = Self.isNewer(latest, than: AppInfo.version) ? latest : nil
     }
 
-    /// Numeric component-wise comparison, missing components treated as zero,
-    /// so `1.2` < `1.2.1`. A `dev` build is never behind anything — otherwise
-    /// every local run nags about an update.
     static func isNewer(_ candidate: String, than current: String) -> Bool {
         guard current != "dev" else { return false }
         let left = candidate.split(separator: ".").compactMap { Int($0) }

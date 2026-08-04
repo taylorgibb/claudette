@@ -2,8 +2,6 @@ import Foundation
 
 public struct CostProgress: Sendable, Equatable {
     public let completedFiles: Int
-    /// Only the files that actually need reading this pass, not every file
-    /// discovered — see `CostReport.filesDiscovered` for that.
     public let totalFiles: Int
 
     public init(completedFiles: Int, totalFiles: Int) {
@@ -16,15 +14,10 @@ public struct CostProgress: Sendable, Equatable {
     }
 }
 
-/// Owns the scan cache and produces `CostReport`s off the main thread.
 public actor CostEngine {
     private let cacheURL: URL?
     private let analytics: any AnalyticsReporting
     private var logRoots: any LogRootResolving
-    /// Loaded on first use, not in `init`. An actor's `init` body runs on the
-    /// caller — which is the main thread during launch — and this file grows
-    /// with the user's history, so eager decoding makes launch slower the more
-    /// they have used Claude Code.
     private var loadedCache: CostCache?
     private var progressContinuations: [UUID: AsyncStream<CostProgress>.Continuation] = [:]
 
@@ -48,8 +41,6 @@ public actor CostEngine {
         set { loadedCache = newValue }
     }
 
-    /// Latest-value-wins: a subscriber only ever wants the current progress,
-    /// and a first scan yields one event per file.
     public func progressUpdates() -> AsyncStream<CostProgress> {
         let (stream, continuation) = AsyncStream.makeStream(
             of: CostProgress.self, bufferingPolicy: .bufferingNewest(1))
@@ -75,10 +66,6 @@ public actor CostEngine {
         logRoots = roots
     }
 
-    /// Incremental scan: new/grown files get their tails read; a file that
-    /// shrank, changed inode, or moved backwards in time forces a full
-    /// rebuild (totals are global, so one file's contribution can't be
-    /// subtracted).
     public func refresh(prices: PriceTable, now: Date = Date()) async -> CostReport {
         let started = DispatchTime.now()
         let files = LogScanner.sessionFiles(in: logRoots.roots())
@@ -96,8 +83,6 @@ public actor CostEngine {
             if entry.cursor.size > offset {
                 toScan.append((entry.url, offset, entry.cursor))
             } else if cache.files[path] == nil {
-                // Already fully consumed at discovery time; record it so the
-                // next pass reads only what gets appended after this point.
                 var cursor = entry.cursor
                 cursor.offset = entry.cursor.size
                 cache.files[path] = cursor

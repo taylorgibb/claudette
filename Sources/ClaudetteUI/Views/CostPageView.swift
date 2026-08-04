@@ -1,8 +1,6 @@
 import SwiftUI
 import ClaudetteCore
 
-/// API-equivalent cost over the report window, priced from local session logs
-/// at list rates, against the subscription price.
 struct CostPageView: View {
     @ObservedObject var viewModel: IslandViewModel
 
@@ -35,15 +33,9 @@ struct CostPageView: View {
                     .tint(Theme.primaryText.opacity(0.7))
             }
         }
-        // Roughly the height of the real page, so switching to it doesn't
-        // resize the island and then resize it back a moment later.
         .frame(height: Layout.estimatedPanelBodyHeight, alignment: .top)
     }
 
-    // No `Spacer` anywhere in here: the panel measures this view and feeds the
-    // result back as the island's height, so a flexible child would absorb
-    // whatever height it was offered, latch the loop at that value, and clip
-    // the overflow instead of growing.
     private func content(_ presenter: CostPresenter) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             headline(presenter)
@@ -80,8 +72,6 @@ struct CostPageView: View {
             .foregroundStyle(Theme.secondaryText.opacity(0.6))
     }
 
-    /// One bar per day, today picked out in the foreground colour. Scaled by
-    /// the same fractions the collapsed sparkline uses.
     private func dailySpendBars(_ presenter: CostPresenter) -> some View {
         let fractions = presenter.dailyFractions
         let lastDay = presenter.report.days.last?.key

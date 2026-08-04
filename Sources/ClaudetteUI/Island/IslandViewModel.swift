@@ -2,9 +2,6 @@ import AppKit
 import SwiftUI
 import ClaudetteCore
 
-/// Drives one island: what mode it is in, what data it holds, and when to go
-/// and get more. The rendering decisions live in `UsagePresenter` and
-/// `CostPresenter`; the pixel arithmetic lives in `IslandLayout`.
 @MainActor
 final class IslandViewModel: ObservableObject {
     enum Page: Equatable {
@@ -17,24 +14,29 @@ final class IslandViewModel: ObservableObject {
     @Published var usage = UsageState()
     @Published var costReport: CostReport?
     @Published var costProgress: CostProgress?
-    /// Re-published on the ticker so countdowns and "synced Nm ago" advance.
     @Published private(set) var displayTime = Date()
     @Published var geometry: NotchGeometry
     @Published var availableUpdateVersion: String?
-    /// Reported by the panel once laid out, so the silhouette tracks what the
-    /// content actually needs.
     @Published var measuredPanelHeight: CGFloat?
+    enum SignInPhase: Equatable {
+        case idle
+        case waiting
+        case failed
+    }
+
+    @Published private(set) var isSignedIn: Bool
+    @Published private(set) var signInPhase: SignInPhase = .idle
 
     let settings: AppSettings
     let analytics: any AnalyticsReporting
     private let usageService: UsageService
     private let costEngine: CostEngine
     private let priceLoader: PriceTableLoader
+    private let oauthTokens: OAuthTokenStore
+    private var signInTask: Task<Void, Never>?
     var onModeChange: (@MainActor (IslandMode) -> Void)?
     var onOpenSettings: (@MainActor () -> Void)?
 
-    /// Every long-lived task this object owns. `stop()` can only be honest if
-    /// it can reach all of them, so they all go in here.
     private var runningTasks: [Task<Void, Never>] = []
     private var enterTask: Task<Void, Never>?
     private var exitTask: Task<Void, Never>?
@@ -47,7 +49,8 @@ final class IslandViewModel: ObservableObject {
         usageService: UsageService,
         costEngine: CostEngine,
         priceLoader: PriceTableLoader,
-        analytics: any AnalyticsReporting
+        analytics: any AnalyticsReporting,
+        oauthTokens: OAuthTokenStore = OAuthTokenStore()
     ) {
         self.settings = settings
         self.geometry = geometry
@@ -55,9 +58,9 @@ final class IslandViewModel: ObservableObject {
         self.costEngine = costEngine
         self.priceLoader = priceLoader
         self.analytics = analytics
+        self.oauthTokens = oauthTokens
+        self.isSignedIn = oauthTokens.isSignedIn
     }
-
-    // MARK: Derived state
 
     var layout: IslandLayout {
         IslandLayout(geometry: geometry, measuredPanelHeight: measuredPanelHeight)
@@ -76,8 +79,6 @@ final class IslandViewModel: ObservableObject {
                 plan: settings.billingTier(detected: usage.planTier))
         }
     }
-
-    // MARK: Lifecycle
 
     func start() {
         restartTicker()
@@ -111,13 +112,9 @@ final class IslandViewModel: ObservableObject {
         tickerTask?.cancel()
         enterTask?.cancel()
         exitTask?.cancel()
+        signInTask?.cancel()
     }
 
-    /// Collapsed, nothing on screen reads `displayTime` more than once every
-    /// half minute. Re-armed on every mode change rather than sampling the
-    /// interval once per iteration — otherwise expanding mid-sleep leaves the
-    /// countdowns frozen for up to 30 seconds, which is exactly the moment
-    /// they are being looked at.
     private func restartTicker() {
         tickerTask?.cancel()
         let interval: Duration = mode == .collapsed ? .seconds(30) : .seconds(1)
@@ -130,11 +127,6 @@ final class IslandViewModel: ObservableObject {
         }
     }
 
-    // MARK: Hover state machine
-
-    /// Debounced in both directions: 60ms of hover before expanding, so
-    /// crossing the notch on the way somewhere else does nothing; 400ms of
-    /// grace before collapsing, so clipping a corner doesn't dismiss it.
     func hoverChanged(isInside: Bool) {
         if isInside {
             exitTask?.cancel()
@@ -144,7 +136,6 @@ final class IslandViewModel: ObservableObject {
                 try? await Task.sleep(for: .milliseconds(60))
                 guard !Task.isCancelled, let self else { return }
                 self.enterTask = nil
-                // Never expand into the middle of a drag.
                 guard self.mode == .collapsed, NSEvent.pressedMouseButtons == 0 else { return }
                 self.expand()
             }
@@ -181,8 +172,6 @@ final class IslandViewModel: ObservableObject {
         onModeChange?(newMode)
     }
 
-    /// One entry point for both directions, so the analytics can't be
-    /// attached to only one of them.
     func showPage(_ newPage: Page) {
         guard page != newPage else { return }
         page = newPage
@@ -197,15 +186,43 @@ final class IslandViewModel: ObservableObject {
         Task { await usageService.refreshNow() }
     }
 
+    func signInWithClaude() {
+        guard signInTask == nil else { return }
+        signInPhase = .waiting
+        let store = oauthTokens
+        signInTask = Task { [weak self] in
+            do {
+                try await ClaudeOAuth.signIn(
+                    store: store,
+                    transport: URLSessionTransport(),
+                    openBrowser: { NSWorkspace.shared.open($0) })
+                guard let self else { return }
+                self.isSignedIn = true
+                self.signInPhase = .idle
+                self.refreshUsage()
+            } catch is CancellationError {
+                self?.signInPhase = .idle
+            } catch {
+                self?.signInPhase = .failed
+            }
+            self?.signInTask = nil
+        }
+    }
+
+    func cancelSignIn() {
+        signInTask?.cancel()
+    }
+
+    func signOut() {
+        oauthTokens.clear()
+        isSignedIn = false
+        refreshUsage()
+    }
+
     func openSettings() {
         onOpenSettings?()
     }
 
-    // MARK: Data
-
-    /// A scan walks every Claude log root, and hover is cheap to trigger.
-    /// Compares against the wall clock, not `displayTime`, which is up to 30
-    /// seconds stale in exactly the state this is called from.
     func refreshCostIfStale() {
         guard let report = costReport else { return refreshCost() }
         guard Date().timeIntervalSince(report.generatedAt) > Intervals.costFreshness else { return }

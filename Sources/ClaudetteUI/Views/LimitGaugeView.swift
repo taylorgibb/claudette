@@ -1,9 +1,6 @@
 import SwiftUI
 import ClaudetteCore
 
-/// One usage window: label, countdown, percent remaining, track, and the pace
-/// tick — where usage would be if the window were consumed evenly. Fill short
-/// of the tick means ahead of pace. The numeral carries the gauge tint.
 struct LimitGaugeView: View {
     let gauge: UsagePresenter.Gauge
     let now: Date
@@ -15,10 +12,8 @@ struct LimitGaugeView: View {
 
     private var usedFraction: Double { window?.fractionUsed ?? 0 }
 
-    /// Always percent remaining, so the fill drains left to right.
     private var fillFraction: Double { 1 - usedFraction }
 
-    /// pace = (now - windowStart) / (windowEnd - windowStart)
     private var paceUsed: Double? {
         guard let resetsAt = window?.resetsAt, gauge.duration > 0 else { return nil }
         let start = resetsAt.addingTimeInterval(-gauge.duration)
@@ -56,7 +51,6 @@ struct LimitGaugeView: View {
             }
             track(tint: tint)
         }
-        // Present but recessive: holds height without reading as data.
         .opacity(isUnavailable ? 0.34 : 1)
         .onChange(of: aheadOfPace) { _, crossed in
             guard crossed else {
@@ -85,8 +79,6 @@ struct LimitGaugeView: View {
     @ViewBuilder
     private func track(tint: Color) -> some View {
         if isUnavailable {
-            // Dashed rule: reads as "no window here", not "a window at zero".
-            // Same row height as a real track so the three rows stay aligned.
             HorizontalRule()
                 .stroke(
                     Theme.hairline,
@@ -95,8 +87,6 @@ struct LimitGaugeView: View {
         } else {
             GeometryReader { geo in
                 let width = geo.size.width
-                // The row is tick-height so the marker can overhang the track
-                // on both sides; the capsules stay centred at track height.
                 ZStack(alignment: .leading) {
                     Capsule()
                         .fill(Theme.hairline)
@@ -106,8 +96,6 @@ struct LimitGaugeView: View {
                         .frame(
                             width: max(Layout.trackHeight, width * fillFraction),
                             height: Layout.trackHeight)
-                        // Critically damped on purpose: overshoot on a
-                        // percentage bar reads as a bug.
                         .animation(.spring(response: 0.55, dampingFraction: 1.0), value: fillFraction)
                     if let tickPosition {
                         Capsule()
@@ -127,7 +115,6 @@ struct LimitGaugeView: View {
     }
 }
 
-/// Used for the unavailable row's dashed track.
 private struct HorizontalRule: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()

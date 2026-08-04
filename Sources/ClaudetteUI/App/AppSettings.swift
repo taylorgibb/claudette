@@ -2,25 +2,13 @@ import Foundation
 import Combine
 import ClaudetteCore
 
-/// Everything the user can change, backed by `UserDefaults`.
-///
-/// Writes publish through `changes` rather than calling out directly: a
-/// `didSet` that synchronously mutates another `ObservableObject` is one
-/// refactor away from "Publishing changes from within view updates is not
-/// allowed", and a SwiftUI `Picker` binding writes these from inside a view
-/// update.
 @MainActor
 final class AppSettings: ObservableObject {
-    /// A setting that changed, and its new value rendered for telemetry.
-    /// Paths and other free-form values report `nil` and are never sent.
     struct Change: Sendable {
         let key: Key
         let reportedValue: String?
     }
 
-    /// Typed so a wiring switch can be exhaustive. A stringly-typed key was
-    /// the app's only wiring bus, and a typo'd case was a silently dead
-    /// setting with nothing to catch it.
     enum Key: String, Sendable, CaseIterable {
         case pollIntervalMinutes
         case planTierOverride
@@ -74,14 +62,11 @@ final class AppSettings: ObservableObject {
         didSet { store(.planTierOverride, planTierOverride, reported: planTierOverride) }
     }
     @Published var extraLogRoots: [String] {
-        // Paths never leave the machine.
         didSet { store(.extraLogRoots, extraLogRoots, reported: nil) }
     }
     @Published var launchesAtLogin: Bool {
         didSet { store(.launchesAtLogin, launchesAtLogin, reported: "\(launchesAtLogin)") }
     }
-    /// Keeps the machine awake for long agent runs. The display is still
-    /// allowed to sleep.
     @Published var preventsSleep: Bool {
         didSet { store(.preventsSleep, preventsSleep, reported: "\(preventsSleep)") }
     }
@@ -105,9 +90,6 @@ final class AppSettings: ObservableObject {
         return max(0, Int(Date().timeIntervalSince1970 - first) / 86_400)
     }
 
-    /// The tier to bill against: an explicit choice wins, otherwise whatever
-    /// the account reported. An override naming a tier that no longer exists
-    /// falls back to detection rather than stranding the user on no price.
     func billingTier(detected: String?) -> PlanTier? {
         PlanTier.effective(override: planTierOverride, detected: detected)
     }

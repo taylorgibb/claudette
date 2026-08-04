@@ -3,51 +3,32 @@ import Foundation
 public struct UsageState: Sendable, Equatable {
     public enum Phase: Sendable, Equatable {
         case initializing
-        /// Last fetch succeeded; `snapshot`/`syncedAt` are current.
         case ok
         case credentialsUnavailable(CredentialFailureReason)
-        /// HTTP 401 — polling drops to a slow retry in case Claude Code
-        /// refreshes the token underneath us.
         case unauthorized
-        /// HTTP 403 — token lacks `user:profile`.
         case scopeMissing
         case rateLimited(until: Date?)
-        /// The request never completed: no network, DNS failure, timeout.
         case offline
-        /// It completed, but not usefully — a 5xx, or a body we can't read.
         case serverError(status: Int?)
     }
 
     public var phase: Phase = .initializing
-    /// Last good snapshot; kept through error phases so the UI can render
-    /// dimmed stale data instead of a blank.
     public var snapshot: UsageSnapshot?
     public var syncedAt: Date?
     public var isRefreshing = false
     public var lastHTTPStatus: Int?
-    public var credentialSource: CredentialSource?
-    /// e.g. "default_claude_max_5x" (usage response) or "max" (credentials).
     public var planTier: String?
     public var pollInterval: TimeInterval = Intervals.usagePoll
 
     public init() {}
 
-    /// Stale = older than two poll intervals; the UI dims the numbers.
     public func isStale(now: Date = Date()) -> Bool {
         guard let syncedAt else { return true }
         return now.timeIntervalSince(syncedAt) > pollInterval * 2
     }
 }
 
-/// Owns the usage polling loop. Single URLSession, exponential backoff on
-/// 429, slow retry on 401, jittered schedule, snapshot persistence.
-///
-/// Note that `actor` alone would not make this correct: every `await` is a
-/// suspension point where another caller can enter, so the fetch is funnelled
-/// through a single `inFlight` task rather than relying on isolation.
 public actor UsageService {
-    /// Without a `claude-code/*` UA the endpoint applies a much tighter
-    /// rate-limit bucket and returns persistent 429s.
     public static let userAgent = "claude-code/2.1.2"
 
     private let transport: any HTTPTransport
@@ -76,10 +57,6 @@ public actor UsageService {
         self.analytics = analytics
     }
 
-    // MARK: - Public surface
-
-    /// Latest-value-wins: a late subscriber wants the current state, not the
-    /// backlog of every state the service has passed through.
     public func stateUpdates() -> AsyncStream<UsageState> {
         let (stream, continuation) = AsyncStream.makeStream(
             of: UsageState.self, bufferingPolicy: .bufferingNewest(1))
@@ -110,9 +87,6 @@ public actor UsageService {
         schedule(after: jittered(interval))
     }
 
-    /// Suspend while the screen is locked or asleep. Cancels the in-flight
-    /// request too: a fetch that completes after this would otherwise re-arm
-    /// the timer and quietly resume polling through the sleep.
     public func suspend() {
         suspended = true
         pollTask?.cancel()
@@ -127,15 +101,11 @@ public actor UsageService {
         await fetch()
     }
 
-    /// Manual refresh (sync label click). Joins a fetch already in progress
-    /// rather than firing a second request at a rate-limited endpoint.
     public func refreshNow() async {
         await fetch()
     }
 
     public func currentState() -> UsageState { state }
-
-    // MARK: - Polling
 
     private func removeContinuation(_ id: UUID) {
         continuations[id] = nil
@@ -148,14 +118,10 @@ public actor UsageService {
     }
 
     private func jittered(_ interval: TimeInterval) -> TimeInterval {
-        // ±20s so multiple machines on one account don't sync up.
         max(30, interval + Double.random(in: -20...20))
     }
 
     private func schedule(after seconds: TimeInterval) {
-        // Checked here rather than at each call site: a fetch that started
-        // before `suspend()` still runs to completion and would otherwise
-        // re-arm the timer from inside `performFetch`.
         guard !suspended else { return }
         pollTask?.cancel()
         pollTask = Task { [weak self] in
@@ -165,9 +131,6 @@ public actor UsageService {
         }
     }
 
-    /// Single-flight. Without this a manual refresh landing during a scheduled
-    /// poll fires two requests, and the first one's `defer` clears
-    /// `isRefreshing` while the second is still running.
     private func fetch() async {
         guard !suspended else { return }
         if let inFlight {
@@ -191,19 +154,14 @@ public actor UsageService {
         }
 
         let creds: Credentials
-        switch credentials.load() {
+        switch await credentials.load() {
         case .failure(let reason):
             state.phase = reason == .scopeMissing ? .scopeMissing : .credentialsUnavailable(reason)
-            state.credentialSource = nil
             analytics.capture(.credentialsUnavailable(reason: reason.rawValue))
             schedule(after: jittered(state.pollInterval))
             return
         case .success(let loaded):
             creds = loaded
-        }
-        state.credentialSource = creds.source
-        if state.planTier == nil {
-            state.planTier = creds.subscriptionType
         }
 
         let headers: [String: String] = [
@@ -265,7 +223,6 @@ public actor UsageService {
             schedule(after: Intervals.authRetry)
 
         case 429:
-            // Exponential backoff from 5 min, cap 60 min, honour retry-after.
             rateLimitBackoff = rateLimitBackoff == 0
                 ? Intervals.rateLimitBackoffFloor
                 : min(rateLimitBackoff * 2, Intervals.rateLimitBackoffCeiling)

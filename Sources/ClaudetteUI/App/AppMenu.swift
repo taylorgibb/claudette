@@ -1,15 +1,5 @@
 import AppKit
 
-/// Builds the app's main menu.
-///
-/// An `LSUIElement` app has no menu bar of its own, which is why ⌘W and Esc
-/// used to be hand-wired through an `NSEvent` monitor. That monitor was a
-/// symptom: the moment the settings window is up, ⌘Q and — as soon as any
-/// text field exists — ⌘X/⌘C/⌘V are all dispatched through menu items too, and
-/// none of them existed. Installing a real menu is both smaller and complete.
-///
-/// The menu is only ever visible while the settings window is open and the app
-/// is temporarily `.regular`; the rest of the time nothing renders it.
 @MainActor
 enum AppMenu {
     static func install(appName: String = "Claudette") {
@@ -55,8 +45,6 @@ enum AppMenu {
         return menu
     }
 
-    /// Present so the standard clipboard shortcuts work in any text field the
-    /// settings window grows. Without an Edit menu they are simply dead keys.
     private static func editSubmenu() -> NSMenu {
         let menu = NSMenu(title: "Edit")
         menu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")

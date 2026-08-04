@@ -4,12 +4,11 @@ import XCTest
 final class UsageServiceTests: XCTestCase {
     struct StubCredentials: CredentialProviding {
         let result: Result<Credentials, CredentialFailureReason>
-        func load() -> Result<Credentials, CredentialFailureReason> { result }
+        func load() async -> Result<Credentials, CredentialFailureReason> { result }
     }
 
     private let goodCreds = Credentials(
-        accessToken: "token", expiresAt: nil, scopes: ["user:profile"],
-        subscriptionType: "max", source: .credentialsFile)
+        accessToken: "token", expiresAt: nil, scopes: ["user:profile"])
 
     private func firstState(
         matching predicate: @escaping @Sendable (UsageState) -> Bool,
@@ -40,8 +39,6 @@ final class UsageServiceTests: XCTestCase {
             persistenceURL: nil)
         let state = await firstState(matching: { $0.phase == .ok }, from: service)
         XCTAssertEqual(state?.snapshot?.session?.percentUsed, 33.0)
-        XCTAssertEqual(state?.planTier, "max")
-        XCTAssertEqual(state?.credentialSource, .credentialsFile)
     }
 
     func test401MovesToUnauthorized() async {
@@ -66,10 +63,10 @@ final class UsageServiceTests: XCTestCase {
     func testMissingCredentialsSurfaceReason() async {
         let service = UsageService(
             transport: StubTransport(reply: HTTPResponse(status: 200, data: Data())),
-            credentials: StubCredentials(result: .failure(.mcpOnly)),
+            credentials: StubCredentials(result: .failure(.signedOut)),
             persistenceURL: nil)
         let state = await firstState(
-            matching: { $0.phase == .credentialsUnavailable(.mcpOnly) }, from: service)
+            matching: { $0.phase == .credentialsUnavailable(.signedOut) }, from: service)
         XCTAssertNotNil(state)
     }
 
@@ -101,11 +98,7 @@ final class UsageServiceTests: XCTestCase {
     }
 }
 
-/// `actor` prevents data races, not overlapping calls: every `await` is a
-/// suspension point where another caller can enter.
 final class UsageServiceConcurrencyTests: XCTestCase {
-    /// Blocks until released, so several fetches are provably in flight at
-    /// once if the service allows it.
     private final class GatedTransport: HTTPTransport, @unchecked Sendable {
         private let lock = NSLock()
         private var _callCount = 0
@@ -142,17 +135,13 @@ final class UsageServiceConcurrencyTests: XCTestCase {
     }
 
     private let creds = Credentials(
-        accessToken: "token", expiresAt: nil, scopes: ["user:profile"],
-        subscriptionType: "max", source: .credentialsFile)
+        accessToken: "token", expiresAt: nil, scopes: ["user:profile"])
 
     private struct StubCredentials: CredentialProviding {
         let result: Result<Credentials, CredentialFailureReason>
-        func load() -> Result<Credentials, CredentialFailureReason> { result }
+        func load() async -> Result<Credentials, CredentialFailureReason> { result }
     }
 
-    /// A manual refresh landing during a scheduled poll used to fire a second
-    /// request at a rate-limit-sensitive endpoint, and the first one's `defer`
-    /// cleared `isRefreshing` while the second was still running.
     func testConcurrentRefreshesCoalesceIntoOneRequest() async {
         let transport = GatedTransport()
         let service = UsageService(
@@ -164,7 +153,6 @@ final class UsageServiceConcurrencyTests: XCTestCase {
         async let second: Void = service.refreshNow()
         async let third: Void = service.refreshNow()
 
-        // Let all three reach the actor before releasing the request.
         try? await Task.sleep(for: .milliseconds(80))
         transport.open()
         transport.open()
@@ -176,8 +164,6 @@ final class UsageServiceConcurrencyTests: XCTestCase {
         XCTAssertFalse(state.isRefreshing)
     }
 
-    /// A fetch that completes after `suspend()` used to re-arm the poll timer
-    /// unconditionally, quietly resuming polling through sleep.
     func testSuspendStopsPollingEvenIfAFetchWasInFlight() async {
         let transport = GatedTransport()
         let service = UsageService(
@@ -191,7 +177,6 @@ final class UsageServiceConcurrencyTests: XCTestCase {
         transport.open()
         await inFlight
 
-        // Nothing further may start while suspended.
         await service.refreshNow()
         XCTAssertEqual(transport.callCount, 1)
     }
