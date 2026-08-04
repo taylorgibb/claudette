@@ -32,8 +32,6 @@ you're on. Right-click for refresh, settings and quit.
 
 ## Installation
 
-### DMG
-
 1. Download `Claudette-x.y.z.dmg` from the
    [latest release](https://github.com/taylorgibb/claudette/releases/latest).
 2. Open the DMG and drag **Claudette** into **Applications**.
@@ -42,15 +40,6 @@ you're on. Right-click for refresh, settings and quit.
    Open, or run
    `xattr -dr com.apple.quarantine /Applications/Claudette.app`.
 4. Right-click the island, open Settings and use **Sign In with Claude**.
-
-### Homebrew
-
-```sh
-brew tap taylorgibb/claudette https://github.com/taylorgibb/claudette.git
-brew install --cask taylorgibb/claudette/claudette
-```
-
-The first-launch and sign-in steps above apply here too.
 
 ## Running from Source
 
