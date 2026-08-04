@@ -131,7 +131,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          repository: taylorgibb/homebrew-claudette
+          token: ${{ secrets.TAP_GITHUB_TOKEN }}
 
       - name: Update cask version and checksum
         run: |
@@ -146,5 +147,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Casks/claudette.rb
-          git commit -m "Update Homebrew cask to v${{ needs.build.outputs.version }}"
-          git push origin main
+          git commit -m "Update claudette cask to v${{ needs.build.outputs.version }}"
+          git push

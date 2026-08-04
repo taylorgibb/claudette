@@ -33,14 +33,14 @@ you're on. Right-click for refresh, settings and quit.
 ## Installing from Homebrew
 
 ```sh
-brew tap taylorgibb/claudette https://github.com/taylorgibb/claudette.git
-brew install --cask taylorgibb/claudette/claudette
+brew tap taylorgibb/claudette
+brew install --cask claudette
 ```
 
 Until releases are signed with a Developer ID and notarized, add
 `--no-quarantine` to the install command (or right-click → Open). On first
-refresh macOS asks for access to Claude Code's keychain item; click
-**Always Allow** once.
+launch, right-click the island, open Settings and use **Sign In with
+Claude**.
 
 ## Running from Source
 
