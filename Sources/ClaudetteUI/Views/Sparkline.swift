@@ -18,7 +18,7 @@ struct Sparkline: View, Equatable {
                 }
             }
             .frame(height: Layout.chartHeight)
-            .opacity(0.75)
+            .opacity(Theme.chartDimOpacity)
         }
         .padding(.top, Layout.chartTopMargin)
     }

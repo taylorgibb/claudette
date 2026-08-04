@@ -29,7 +29,7 @@ struct SettingsView: View {
 
                 divider
 
-                settingRow("Plan", detail: detectedPlanDetail) {
+                settingRow("Plan") {
                     Picker("", selection: $settings.planTierOverride) {
                         Text("Automatic").tag(PlanTier.automaticID)
                         Divider()
@@ -51,7 +51,7 @@ struct SettingsView: View {
 
                 divider
 
-                settingRow("Claude Account", detail: accountDetail) {
+                settingRow("Claude Account") {
                     if viewModel.isSignedIn {
                         Button("Sign Out") { viewModel.signOut() }
                     } else if viewModel.signInPhase == .waiting {
@@ -114,23 +114,6 @@ struct SettingsView: View {
         }
     }
 
-    private var accountDetail: String {
-        if viewModel.isSignedIn {
-            return "Signed in. Claudette keeps its own token — no more keychain prompts."
-        }
-        switch viewModel.signInPhase {
-        case .waiting: return "Finish signing in from your browser."
-        case .failed: return "Sign-in didn't complete. Try again."
-        case .idle: return "One-time browser sign-in that replaces the keychain prompts."
-        }
-    }
-
-    private var detectedPlanDetail: String {
-        guard let detected = PlanTier.resolve(viewModel.usage.planTier) else {
-            return "Nothing detected yet."
-        }
-        return "Detected from your account: \(detected.displayName)."
-    }
 }
 
 @MainActor

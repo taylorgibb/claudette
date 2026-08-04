@@ -1,0 +1,73 @@
+<svg width="420" height="270" viewBox="0 0 420 270" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="desk" cx="0.24" cy="-0.1" r="1.3">
+      <stop stop-color="#2A3A47"/>
+      <stop offset="0.52" stop-color="#17212B"/>
+      <stop offset="1" stop-color="#0E151C"/>
+    </radialGradient>
+    <linearGradient id="sparkfade" x1="0" y1="148" x2="0" y2="184" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F26A46" stop-opacity="0.15"/>
+      <stop offset="1" stop-color="#F26A46" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="panelclip">
+      <path d="M0 0 H344 V194 A14 14 0 0 1 330 208 H14 A14 14 0 0 1 0 194 Z"/>
+    </clipPath>
+    <filter id="panelshadow" x="-20%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- Desktop -->
+  <rect width="420" height="270" fill="url(#desk)"/>
+
+  <!-- Expanded panel: 344pt wide, bottom corner radius 14, hanging from the notch -->
+  <g transform="translate(38,0)">
+    <path d="M0 0 H344 V194 A14 14 0 0 1 330 208 H14 A14 14 0 0 1 0 194 Z" fill="#000000" filter="url(#panelshadow)"/>
+
+    <g clip-path="url(#panelclip)">
+      <!-- Camera -->
+      <circle cx="172" cy="16" r="4" fill="#0B0E11" stroke="#060809" stroke-width="1.6"/>
+
+      <!-- Settings gear -->
+      <g stroke="#7C8794" stroke-width="1.4" stroke-linecap="round">
+        <circle cx="322" cy="16" r="4.2" fill="none"/>
+        <circle cx="322" cy="16" r="1.4" fill="#7C8794" stroke="none"/>
+        <path d="M322 9.6 V11 M322 21 V22.4 M315.6 16 H317 M327 16 H328.4 M317.5 11.5 L318.5 12.5 M325.5 19.5 L326.5 20.5 M326.5 11.5 L325.5 12.5 M318.5 19.5 L317.5 20.5"/>
+      </g>
+
+      <!-- SESSION · 72% left, on pace -->
+      <text x="16" y="48" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', sans-serif" font-size="8.5" font-weight="600" letter-spacing="0.6" fill="#7C8794">SESSION</text>
+      <text x="66" y="48" font-family="'SF Mono', ui-monospace, 'Menlo', monospace" font-size="8.5" font-weight="500" letter-spacing="0.3" fill="#7C8794" opacity="0.65">2H 14M</text>
+      <text x="328" y="49" text-anchor="end" font-family="'SF Mono', ui-monospace, 'Menlo', monospace" font-size="11" font-weight="500" fill="#F46549">72%</text>
+      <rect x="16" y="54.5" width="312" height="3" rx="1.5" fill="#FFFFFF" fill-opacity="0.08"/>
+      <rect x="16" y="54.5" width="224.6" height="3" rx="1.5" fill="#F46549"/>
+      <rect x="155.7" y="51.5" width="1.5" height="9" rx="0.75" fill="#F5F7FA" opacity="0.75"/>
+
+      <!-- WEEK · 45% left, tick shows the even-burn point -->
+      <text x="16" y="85" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', sans-serif" font-size="8.5" font-weight="600" letter-spacing="0.6" fill="#7C8794">WEEK</text>
+      <text x="52" y="85" font-family="'SF Mono', ui-monospace, 'Menlo', monospace" font-size="8.5" font-weight="500" letter-spacing="0.3" fill="#7C8794" opacity="0.65">4D 07H</text>
+      <text x="328" y="86" text-anchor="end" font-family="'SF Mono', ui-monospace, 'Menlo', monospace" font-size="11" font-weight="500" fill="#F6604C">45%</text>
+      <rect x="16" y="91.5" width="312" height="3" rx="1.5" fill="#FFFFFF" fill-opacity="0.08"/>
+      <rect x="16" y="91.5" width="140.4" height="3" rx="1.5" fill="#F6604C"/>
+      <rect x="205.6" y="88.5" width="1.5" height="9" rx="0.75" fill="#F5F7FA" opacity="0.75"/>
+
+      <!-- OPUS · 22% left, burning ahead of pace -->
+      <text x="16" y="122" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', sans-serif" font-size="8.5" font-weight="600" letter-spacing="0.6" fill="#7C8794">OPUS</text>
+      <text x="50" y="122" font-family="'SF Mono', ui-monospace, 'Menlo', monospace" font-size="8.5" font-weight="500" letter-spacing="0.3" fill="#7C8794" opacity="0.65">4D 07H</text>
+      <text x="328" y="123" text-anchor="end" font-family="'SF Mono', ui-monospace, 'Menlo', monospace" font-size="11" font-weight="500" fill="#FA5353">22%</text>
+      <rect x="16" y="128.5" width="312" height="3" rx="1.5" fill="#FFFFFF" fill-opacity="0.08"/>
+      <rect x="16" y="128.5" width="68.6" height="3" rx="1.5" fill="#FA5353"/>
+      <rect x="205.6" y="125.5" width="1.5" height="9" rx="0.75" fill="#F5F7FA"/>
+
+      <!-- Spend sparkline -->
+      <path d="M0 178 L14 176 L28 177 L42 172 L56 174 L70 168 L84 171 L98 163 L112 167 L126 158 L140 162 L154 155 L168 160 L182 152 L196 156 L210 149 L224 154 L238 150 L252 145 L266 151 L280 148 L294 153 L308 150 L322 155 L336 152 L344 154 L344 184 L0 184 Z" fill="url(#sparkfade)"/>
+      <path d="M0 178 L14 176 L28 177 L42 172 L56 174 L70 168 L84 171 L98 163 L112 167 L126 158 L140 162 L154 155 L168 160 L182 152 L196 156 L210 149 L224 154 L238 150 L252 145 L266 151 L280 148 L294 153 L308 150 L322 155 L336 152 L344 154" stroke="#F26A46" stroke-opacity="0.85" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"/>
+
+      <!-- Page dots: usage active, cost idle -->
+      <circle cx="166.5" cy="196" r="2.25" fill="#F5F7FA" fill-opacity="0.85"/>
+      <circle cx="177.5" cy="196" r="2.25" fill="#F5F7FA" fill-opacity="0.28"/>
+    </g>
+
+    <path d="M0.25 0 H343.75 V194 A13.75 13.75 0 0 1 330 207.75 H14 A13.75 13.75 0 0 1 0.25 194 Z" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="0.5"/>
+  </g>
+</svg>

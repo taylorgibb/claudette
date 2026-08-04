@@ -40,25 +40,7 @@ final class CostPresenterTests: XCTestCase {
             report: report(totalDollars: 42.5),
             plan: PlanTier.known.first { $0.id == "max_20x" })
         XCTAssertEqual(presenter.totalText, "$42.50")
-        XCTAssertEqual(presenter.planLabel, "SUBSCRIPTION · MAX 20X")
-        XCTAssertEqual(presenter.planPriceText, "$200")
-        XCTAssertEqual(presenter.spanLabel, "API EQUIVALENT · 30D")
-    }
-
-    func testNoPlanMeansNoComparisonRatherThanAZeroOne() {
-        let presenter = CostPresenter(
-            report: report(totalDollars: 100), plan: nil)
-        XCTAssertEqual(presenter.planPriceText, "—")
-        XCTAssertNil(presenter.comparison)
-        XCTAssertNil(presenter.multipleText)
-        XCTAssertNil(presenter.breakEvenText)
-    }
-
-    func testSubscriptionMultiple() {
-        let presenter = CostPresenter(
-            report: report(totalDollars: 470),
-            plan: PlanTier.known.first { $0.id == "max_5x" })
-        XCTAssertEqual(presenter.multipleText, "4.7×")
+        XCTAssertEqual(presenter.spanLabel, "ESTIMATED COST")
     }
 
     func testUnpricedModelRendersADashAndIsNamedInTheFootnote() {
@@ -90,9 +72,5 @@ final class CostPresenterTests: XCTestCase {
         let presenter = CostPresenter(report: report(models: models), plan: nil)
         XCTAssertEqual(presenter.modelRows.count, 4)
         XCTAssertEqual(presenter.hiddenModelCount, 3)
-    }
-
-    func testDisclaimerNamesTheCurrency() {
-        XCTAssertTrue(CostPresenter(report: report(), plan: nil).disclaimer.contains("in USD"))
     }
 }

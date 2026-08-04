@@ -1,0 +1,28 @@
+<svg width="720" height="150" viewBox="0 0 720 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="desk" cx="0.24" cy="-0.1" r="1.3">
+      <stop stop-color="#2A3A47"/>
+      <stop offset="0.52" stop-color="#17212B"/>
+      <stop offset="1" stop-color="#0E151C"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Desktop -->
+  <rect width="720" height="150" fill="url(#desk)"/>
+
+  <!-- Menu bar -->
+  <g fill="#FFFFFF" fill-opacity="0.92" font-family="-apple-system, 'SF Pro Text', 'Segoe UI', sans-serif" font-size="12.5">
+    <rect x="13" y="10" width="10" height="12" rx="5"/>
+    <text x="40" y="21" font-weight="600">Finder</text>
+    <text x="88" y="21">File</text>
+    <text x="707" y="21" text-anchor="end" style="font-variant-numeric:tabular-nums">Sat 2 Aug&#160; 09:41</text>
+  </g>
+
+  <!-- Collapsed island: 42pt pill · notch · 42pt pill, bottom corner radius 14 -->
+  <g transform="translate(228,0)" font-family="'SF Mono', ui-monospace, 'Menlo', 'Consolas', monospace">
+    <path d="M0 0 H264 V19 A14 14 0 0 1 250 33 H14 A14 14 0 0 1 0 19 Z" fill="#000000"/>
+    <circle cx="132" cy="16" r="4" fill="#0B0E11" stroke="#060809" stroke-width="1.6"/>
+    <text x="21" y="20.5" text-anchor="middle" font-size="11" font-weight="500" fill="#F46549">72%</text>
+    <text x="243" y="20.5" text-anchor="middle" font-size="11" font-weight="500" fill="#F6604C">45%</text>
+  </g>
+</svg>

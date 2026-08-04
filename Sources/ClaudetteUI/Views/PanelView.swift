@@ -12,21 +12,26 @@ struct PanelView: View {
             }
             .frame(height: viewModel.geometry.notchHeight)
 
-            ZStack {
-                if viewModel.page == .usage {
-                    usagePage
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .leading).combined(with: .opacity),
-                            removal: .move(edge: .leading).combined(with: .opacity)))
-                } else {
-                    CostPageView(viewModel: viewModel)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .trailing).combined(with: .opacity),
-                            removal: .move(edge: .trailing).combined(with: .opacity)))
-                }
+            // Both pages stay mounted so the ZStack always sizes to the taller
+            // one — switching pages must never change the island's height.
+            ZStack(alignment: .top) {
+                usagePage
+                    .opacity(viewModel.page == .usage ? 1 : 0)
+                    .offset(x: viewModel.page == .usage ? 0 : -24)
+                    .allowsHitTesting(viewModel.page == .usage)
+                    .accessibilityHidden(viewModel.page != .usage)
+                CostPageView(viewModel: viewModel)
+                    .opacity(viewModel.page == .cost ? 1 : 0)
+                    .offset(x: viewModel.page == .cost ? 0 : 24)
+                    .allowsHitTesting(viewModel.page == .cost)
+                    .accessibilityHidden(viewModel.page != .cost)
             }
             .animation(.spring(response: 0.35, dampingFraction: 0.9), value: viewModel.page)
             .clipped()
+            .contentShape(Rectangle())
+            .onTapGesture {
+                viewModel.showPage(viewModel.page == .usage ? .cost : .usage)
+            }
             .gesture(
                 DragGesture(minimumDistance: 20)
                     .onEnded { value in
@@ -36,9 +41,33 @@ struct PanelView: View {
                             viewModel.showPage(.usage)
                         }
                     })
+
+            pageDots
         }
         .frame(width: viewModel.layout.expandedSize.width)
         .measuredHeight { viewModel.measuredPanelHeight = $0 }
+    }
+
+    private var pageDots: some View {
+        HStack(spacing: Layout.pageDotGap) {
+            pageDot(for: .usage)
+            pageDot(for: .cost)
+        }
+        .padding(.vertical, Layout.pageDotVerticalPadding)
+    }
+
+    private func pageDot(for page: IslandViewModel.Page) -> some View {
+        let isActive = viewModel.page == page
+        return Circle()
+            .fill(Theme.primaryText.opacity(
+                isActive ? Theme.pageDotActiveOpacity : Theme.pageDotIdleOpacity))
+            .frame(width: Layout.pageDotSize, height: Layout.pageDotSize)
+            .frame(width: Layout.pageDotHitSize, height: Layout.pageDotHitSize)
+            .contentShape(Rectangle())
+            .onTapGesture { viewModel.showPage(page) }
+            .animation(.easeOut(duration: 0.2), value: isActive)
+            .accessibilityLabel(page == .usage ? "Usage page" : "Cost page")
+            .accessibilityAddTraits(isActive ? [.isSelected] : [])
     }
 
     private var settingsButton: some View {

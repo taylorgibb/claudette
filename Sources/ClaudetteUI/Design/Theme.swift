@@ -10,18 +10,27 @@ enum Theme {
     static let settingsSurface = Color(hex: 0x1C1C1E)
     static let settingsSecondaryText = Color(hex: 0x8E8E93)
 
-    static let calmRGB = (red: 0xF2 / 255.0, green: 0xA2 / 255.0, blue: 0x5C / 255.0)
-    static let emberRGB = (red: 0xE8 / 255.0, green: 0x81 / 255.0, blue: 0x3A / 255.0)
-    static let flareRGB = (red: 0xF2 / 255.0, green: 0x6A / 255.0, blue: 0x46 / 255.0)
+    // Calm is the chart orange, so gauges at rest match the cost page exactly;
+    // the ramp only diverges from it as usage heats toward flare.
+    static let calmRGB = (red: 0xF2 / 255.0, green: 0x6A / 255.0, blue: 0x46 / 255.0)
+    static let emberRGB = (red: 0xF6 / 255.0, green: 0x5E / 255.0, blue: 0x4D / 255.0)
+    static let flareRGB = (red: 0xFF / 255.0, green: 0x3B / 255.0, blue: 0x5C / 255.0)
 
     static let accent = Color(
-        .sRGB, red: emberRGB.red, green: emberRGB.green, blue: emberRGB.blue, opacity: 1)
+        .sRGB, red: calmRGB.red, green: calmRGB.green, blue: calmRGB.blue, opacity: 1)
 
     static let chartLine = Color(
-        .sRGB, red: flareRGB.red, green: flareRGB.green, blue: flareRGB.blue, opacity: 1)
+        .sRGB, red: calmRGB.red, green: calmRGB.green, blue: calmRGB.blue, opacity: 1)
+
+    // Charts share the gauges' hue and recede only through this one dim level;
+    // any other opacity applied to chartLine reads as a different orange.
+    static let chartDimOpacity: Double = 0.85
 
     static let tickIdleOpacity: Double = 0.75
     static let tickPunchOpacity: Double = 1.0
+
+    static let pageDotActiveOpacity: Double = 0.85
+    static let pageDotIdleOpacity: Double = 0.28
 
     private static let calmLab = OklabColor(red: calmRGB.red, green: calmRGB.green, blue: calmRGB.blue)
     private static let emberLab = OklabColor(red: emberRGB.red, green: emberRGB.green, blue: emberRGB.blue)
@@ -69,6 +78,10 @@ enum Layout {
     static let tickWidth: CGFloat = 1.5
     static let chartHeight: CGFloat = 36
     static let chartTopMargin: CGFloat = 12
+    static let pageDotSize: CGFloat = 4.5
+    static let pageDotGap: CGFloat = 0
+    static let pageDotHitSize: CGFloat = 11
+    static let pageDotVerticalPadding: CGFloat = 3
     static let estimatedPanelBodyHeight: CGFloat = 150
 
     static let hostWindowSize = CGSize(width: 620, height: 340)
