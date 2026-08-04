@@ -32,7 +32,7 @@ found=0
 while IFS= read -r -d '' bundle; do
   cp -R "$bundle" "$APP/Contents/Resources/"
   found=$((found + 1))
-done < <(find -L "$BUILD_DIR" -maxdepth 1 -name "*.bundle" -print0)
+done < <(find -L "$BUILD_DIR" -maxdepth 1 -name "*.bundle" ! -name "*Tests*" -print0)
 if [[ "$found" -eq 0 ]]; then
   echo "error: no .bundle resources found in $BUILD_DIR (prices.json would be missing)" >&2
   exit 1
