@@ -1,6 +1,6 @@
 cask "claudette" do
-  version "0.0.0"
-  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  version "0.1.0"
+  sha256 "538cc9c9a58a9ca674349ed9414fb380701f75643551cd3d0c5952c05fb84901"
 
   url "https://github.com/taylorgibb/claudette/releases/download/v#{version}/Claudette-#{version}.dmg"
   name "Claudette"
