@@ -37,21 +37,39 @@ func render(pixels: Int) -> CGImage {
     NSColor.white.withAlphaComponent(0.09).setStroke()
     squircle.stroke()
 
-    // The C: SF Mono heavy, the app's numeral face.
-    let fontSize = s * 0.62
-    let font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .heavy)
-    let glyph = NSAttributedString(string: "C", attributes: [.font: font])
-    let line = CTLineCreateWithAttributedString(glyph)
-    let bounds = CTLineGetImageBounds(line, ctx)
+    // The C: retro pixel glyph, 2-cell strokes with cut corners.
+    let grid = [
+        ".xxxx.",
+        "xx..xx",
+        "xx....",
+        "xx....",
+        "xx....",
+        "xx..xx",
+        ".xxxx.",
+    ]
+    let rows = grid.count
+    let cols = grid[0].count
+    let glyphHeight = rect.height * 0.59
+    let cell = glyphHeight / CGFloat(rows)
+    let glyphWidth = cell * CGFloat(cols)
+    let originX = rect.midX - glyphWidth / 2
+    let originY = rect.midY - glyphHeight / 2
+    let pixelInset = cell * 0.05
 
-    let x = rect.midX - bounds.midX
-    let y = rect.midY - bounds.midY
+    let glyphPath = CGMutablePath()
+    for (r, row) in grid.enumerated() {
+        for (c, ch) in row.enumerated() where ch == "x" {
+            glyphPath.addRect(CGRect(
+                x: originX + CGFloat(c) * cell + pixelInset,
+                y: originY + CGFloat(rows - 1 - r) * cell + pixelInset,
+                width: cell - 2 * pixelInset,
+                height: cell - 2 * pixelInset))
+        }
+    }
+
     ctx.saveGState()
-    ctx.textPosition = CGPoint(x: x, y: y)
-
-    // Clip to the glyph, then fill with the orange gradient.
-    ctx.setTextDrawingMode(.clip)
-    CTLineDraw(line, ctx)
+    ctx.addPath(glyphPath)
+    ctx.clip()
     let colors = [orangeTop.cgColor, orangeBottom.cgColor] as CFArray
     let gradient = CGGradient(colorsSpace: ctx.colorSpace, colors: colors, locations: [0, 1])!
     ctx.drawLinearGradient(
