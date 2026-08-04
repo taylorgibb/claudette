@@ -30,17 +30,23 @@ you're on. Right-click for refresh, settings and quit.
   `~/.claude/projects/**/*.jsonl`, priced from a bundled table that refreshes
   weekly from this repo.
 
-## Installing from Homebrew
+## Installation
+
+1. Download `Claudette-x.y.z.dmg` from the
+   [latest release](https://github.com/taylorgibb/claudette/releases/latest).
+2. Open the DMG and drag **Claudette** into **Applications**.
+3. Launch it. Until releases are signed with a Developer ID and notarized,
+   macOS may block the first launch; right-click Claudette.app and choose
+   Open, or run
+   `xattr -dr com.apple.quarantine /Applications/Claudette.app`.
+4. Right-click the island, open Settings and use **Sign In with Claude**.
+
+Or with Homebrew:
 
 ```sh
 brew tap taylorgibb/claudette https://github.com/taylorgibb/claudette.git
 brew install --cask taylorgibb/claudette/claudette
 ```
-
-Until releases are signed with a Developer ID and notarized, macOS may block
-the first launch; right-click Claudette.app and choose Open, or run
-`xattr -dr com.apple.quarantine /Applications/Claudette.app`. Then right-click
-the island, open Settings and use **Sign In with Claude**.
 
 ## Running from Source
 

@@ -106,6 +106,7 @@ struct PanelView: View {
                             .tracking(0.6)
                             .foregroundStyle(Theme.primaryText.opacity(0.8))
                     }
+                    .frame(maxWidth: .infinity)
                 }
             }
             .padding(.horizontal, Layout.panelPadding)
