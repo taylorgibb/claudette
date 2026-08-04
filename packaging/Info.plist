@@ -10,6 +10,8 @@
 	<string>za.co.developerhut.claudette</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleName</key>
 	<string>Claudette</string>
 	<key>CFBundleDisplayName</key>

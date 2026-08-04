@@ -22,6 +22,7 @@ rm -rf dist
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp "$BUILD_DIR/Claudette" "$APP/Contents/MacOS/Claudette"
+cp packaging/AppIcon.icns "$APP/Contents/Resources/"
 
 # SPM resource bundles (ClaudetteCore's prices.json) must sit in
 # Contents/Resources for Bundle.module to resolve them.
