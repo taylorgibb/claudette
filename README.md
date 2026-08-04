@@ -1,16 +1,14 @@
 # Claudette
 
-Claude's top-notch supervisor.
-
-Claudette pins a black-glass island over your Mac's notch showing your Claude
-Code limits — percent remaining, one numeral on each side of the camera:
+Claudette pins a black-glass island over your Mac's notch showing how much of
+your Claude Code limits remain, one numeral on each side of the camera:
 
 <p align="center">
-  <img src="docs/island-collapsed.svg" width="720" alt="The collapsed island in the menu bar: a percentage on each side of the notch">
+  <img src="docs/island-collapsed.jpg" width="830" alt="The collapsed island in the menu bar: a percentage on each side of the notch">
 </p>
 
 Hover and it expands in place to three gauge bars over a spend sparkline.
-Click the panel (or swipe, or tap a dot) to flip to the cost page — your last
+Click the panel (or swipe, or tap a dot) to flip to the cost page: your last
 30 days of local session logs priced at pay-as-you-go API rates, next to what
 your subscription actually costs. Two dots at the bottom show which page
 you're on. Right-click for refresh, settings and quit.
@@ -21,7 +19,7 @@ you're on. Right-click for refresh, settings and quit.
 </p>
 
 - Swift 6, SwiftUI, macOS 14+. No dock icon, no external dependencies.
-- Reads the token Claude Code already holds — no login flow of its own.
+- One-time Sign in with Claude. Claudette keeps its own token after that.
 - The notch is detected automatically; non-notched displays get an identical
   synthetic island. Nothing to configure.
 - Gauge tint is a continuous Oklab ramp (calm → ember → flare), not traffic
@@ -40,7 +38,7 @@ brew install --cask taylorgibb/claudette/claudette
 
 Until releases are signed with a Developer ID and notarized, add
 `--no-quarantine` to the install command (or right-click → Open). On first
-refresh macOS asks for access to Claude Code's keychain item — click
+refresh macOS asks for access to Claude Code's keychain item; click
 **Always Allow** once.
 
 ## Running from source
@@ -52,7 +50,7 @@ scripts/package.sh 0.0.0-dev   # assemble dist/Claudette.app from a release buil
 ```
 
 `swift run Claudette` works but runs unbundled, so login-item registration and
-the keychain prompt behave differently — package it for anything beyond a
+the keychain prompt behave differently; package it for anything beyond a
 smoke test.
 
 | Target | Contains |
@@ -66,37 +64,20 @@ meaningful, [docs/input-handling.md](docs/input-handling.md) for how the
 island sits over the notch without stealing clicks, and
 [docs/releasing.md](docs/releasing.md) for the release pipeline.
 
-## What it shows
-
-Usage comes from the same OAuth endpoint Claude Code itself uses. The panel
-always draws three rows — Session (5 h), Week (7 d), and the model-scoped
-weekly limit — and marks any the account doesn't have as unavailable rather
-than moving the others. The collapsed bar shows the first two limits that
-actually exist.
-
-Polling is jittered, with backoff on 429 and a slow retry lane on 401. The
-last good snapshot is persisted and rendered dimmed ("synced 12m ago") when
-stale.
-
-The dollar figure is an **estimate**: list API rates, cache writes at
-1.25×/2× input, cache reads at 0.1×. It excludes batch discounts and
-long-context surcharges. Models with no known price are named in a footnote,
-never silently priced at zero.
-
 ## Privacy
 
 - The access token is read per poll, used for one request, and never written
   to disk or included in any event.
-- Session log *contents* never leave the machine — only aggregate token
+- Session log *contents* never leave the machine; only aggregate token
   counts per model per day are cached locally.
 - Release builds send anonymous usage analytics keyed to a random
   per-install UUID: a closed enum of eight event shapes with no free-form
   property, and error messages pass through a redactor. Builds without a
-  PostHog key — including anything you build yourself — send nothing at all.
+  PostHog key, including anything you build yourself, send nothing at all.
 
 See [SECURITY.md](SECURITY.md) for the full statement and how to report a
 problem.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
