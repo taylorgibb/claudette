@@ -33,8 +33,8 @@ you're on. Right-click for refresh, settings and quit.
 ## Installing from Homebrew
 
 ```sh
-brew tap taylorgibb/claudette
-brew install --cask claudette
+brew tap taylorgibb/claudette https://github.com/taylorgibb/claudette.git
+brew install --cask taylorgibb/claudette/claudette
 ```
 
 Until releases are signed with a Developer ID and notarized, add
